@@ -8,6 +8,7 @@ import { generateId, timestamp } from './utils';
 import { spawnAgent } from './agent-spawner';
 import { buildPrompt } from './prompt-builder';
 import { parseOutputLine } from './output-parser';
+import { GitManager } from './git-manager';
 
 function resolveOutputFile(filename: string, outputDir: string, projectPath: string): string {
   const inOutputDir = path.join(outputDir, filename);
@@ -24,6 +25,7 @@ export class Orchestrator extends EventEmitter {
   private roles: Record<string, RoleDefinition>;
   private projectPath: string;
   private pipelineManager: PipelineManager;
+  private gitManager: GitManager;
   private state: PipelineState | null;
   private checkpointResolvers: Map<string, { resolve: (response: string) => void; reject: (reason: string) => void }>;
 
@@ -31,13 +33,15 @@ export class Orchestrator extends EventEmitter {
     config: WyvernConfig,
     roles: Record<string, RoleDefinition>,
     projectPath: string,
-    pipelineManager: PipelineManager
+    pipelineManager: PipelineManager,
+    gitManager: GitManager
   ) {
     super();
     this.config = config;
     this.roles = roles;
     this.projectPath = projectPath;
     this.pipelineManager = pipelineManager;
+    this.gitManager = gitManager;
     this.state = null;
     this.checkpointResolvers = new Map();
   }
@@ -82,6 +86,17 @@ export class Orchestrator extends EventEmitter {
 
   async runPipeline(directive: string): Promise<PipelineState> {
     this.state = this.pipelineManager.createPipeline(this.projectPath, directive);
+
+    const repoKeys = new Set<string>();
+    for (const role of Object.values(this.roles)) {
+      if (role.repo) repoKeys.add(role.repo);
+    }
+    for (const repoKey of repoKeys) {
+      const repoPath = this.config.repos[repoKey];
+      if (repoPath) {
+        this.gitManager.createFeatureBranch(repoPath, this.getState().id);
+      }
+    }
 
     const entrySlug = Object.keys(this.roles).find(
       slug => this.roles[slug].entry_point === true
@@ -145,13 +160,22 @@ export class Orchestrator extends EventEmitter {
     const pipelineContext = 'Directive: ' + this.getState().directive;
     let accumulatedContext = '';
 
+    const repoPath = role.repo ? (this.config.repos[role.repo] || null) : null;
+    let worktreePath: string | null = null;
+    let taskBranch: string | null = null;
+    if (repoPath) {
+      worktreePath = this.gitManager.createWorktree(repoPath, s.id, agentId, roleSlug);
+      taskBranch = `wyvern/${s.id}/${roleSlug}-${agentId}`;
+    }
+
     for (;;) {
       const fullInput = accumulatedContext
         ? inputContent + '\n\n--- Previous Context ---\n' + accumulatedContext
         : inputContent;
 
       const prompt = buildPrompt(role, this.roles, fullInput, pipelineContext);
-      const proc = spawnAgent(role, this.projectPath, prompt);
+      const cwd = worktreePath || this.projectPath;
+      const proc = spawnAgent(role, cwd, prompt);
 
       const outputLines: string[] = [];
       const commands: AgentCommand[] = [];
@@ -200,6 +224,17 @@ export class Orchestrator extends EventEmitter {
           outputArtifacts: [...this.getState().agents[agentId].outputArtifacts, artifactPath],
           finishedAt: timestamp(),
         });
+
+        if (worktreePath && taskBranch && repoPath) {
+          const featureBranch = this.getState().featureBranch;
+          const mergeResult = this.gitManager.mergeTaskBranch(repoPath, featureBranch, taskBranch);
+          if (mergeResult.conflict) {
+            this.state = { ...this.getState(), status: 'paused' };
+            this.saveState();
+          }
+          this.gitManager.removeWorktree(repoPath, worktreePath);
+        }
+
         return artifactPath;
       }
 
