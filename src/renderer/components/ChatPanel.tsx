@@ -131,8 +131,9 @@ export function ChatPanel({ projectPath }: { projectPath: string }) {
       }
     } else if (!isActive) {
       addMessage({ type: 'directive', content: text });
-      window.wyvern.startPipeline(text, projectPath).catch(() => {
-        addMessage({ type: 'status', content: 'Failed to start pipeline.' });
+      window.wyvern.startPipeline(text, projectPath).catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : String(err);
+        addMessage({ type: 'status', content: 'Failed to start pipeline: ' + msg });
       });
     }
 

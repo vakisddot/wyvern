@@ -10,7 +10,7 @@ function stateFilePath(projectPath: string, pipelineId: string): string {
 }
 
 export class PipelineManager extends EventEmitter {
-  createPipeline(projectPath: string, directive: string): PipelineState {
+  createPipeline(projectPath: string, directive: string, useWorktrees: boolean): PipelineState {
     const id = generateId();
     initPipeline(projectPath, id, directive);
 
@@ -24,7 +24,7 @@ export class PipelineManager extends EventEmitter {
       createdAt: now,
       updatedAt: now,
       totalCostUsd: 0,
-      featureBranch: `wyvern/${id}`,
+      featureBranch: useWorktrees ? `wyvern/${id}/main` : '',
     };
 
     this.savePipeline(projectPath, state);

@@ -22,6 +22,9 @@ export interface RoleDefinition {
 export interface WyvernConfig {
   project: { name: string };
   repos: Record<string, string>;
+  git?: {
+    use_worktrees: boolean;
+  };
   execution: {
     max_parallel_agents: number;
     timeout_per_agent_minutes: number;

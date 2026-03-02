@@ -56,6 +56,10 @@ export class Orchestrator extends EventEmitter {
     this.activeAgentCount = 0;
   }
 
+  private get useWorktrees(): boolean {
+    return this.config.git?.use_worktrees !== false;
+  }
+
   private getState(): PipelineState {
     if (!this.state) throw new Error('No active pipeline');
     return this.state;
@@ -95,16 +99,27 @@ export class Orchestrator extends EventEmitter {
   }
 
   async runPipeline(directive: string): Promise<PipelineState> {
-    this.state = this.pipelineManager.createPipeline(this.projectPath, directive);
+    this.state = this.pipelineManager.createPipeline(this.projectPath, directive, this.useWorktrees);
 
-    const repoKeys = new Set<string>();
-    for (const role of Object.values(this.roles)) {
-      if (role.repo) repoKeys.add(role.repo);
-    }
-    for (const repoKey of repoKeys) {
-      const repoPath = this.config.repos[repoKey];
-      if (repoPath) {
-        this.gitManager.createFeatureBranch(repoPath, this.getState().id);
+    if (this.useWorktrees) {
+      const repoKeys = new Set<string>();
+      for (const role of Object.values(this.roles)) {
+        if (role.repo) repoKeys.add(role.repo);
+      }
+      for (const repoKey of repoKeys) {
+        const repoPath = this.config.repos[repoKey];
+        if (repoPath) {
+          try {
+            this.gitManager.createFeatureBranch(repoPath, this.getState().id);
+          } catch (err) {
+            const msg = err instanceof Error ? err.message : String(err);
+            this.emit('agent-output', {
+              pipelineId: this.getState().id,
+              agentId: '',
+              chunk: '[WARN] Failed to create feature branch for repo "' + repoKey + '": ' + msg,
+            });
+          }
+        }
       }
     }
 
@@ -173,9 +188,20 @@ export class Orchestrator extends EventEmitter {
     const repoPath = role.repo ? (this.config.repos[role.repo] || null) : null;
     let worktreePath: string | null = null;
     let taskBranch: string | null = null;
-    if (repoPath) {
-      worktreePath = this.gitManager.createWorktree(repoPath, s.id, agentId, roleSlug);
-      taskBranch = `wyvern/${s.id}/${roleSlug}-${agentId}`;
+    if (repoPath && this.useWorktrees) {
+      try {
+        worktreePath = this.gitManager.createWorktree(repoPath, s.id, agentId, roleSlug);
+        taskBranch = `wyvern/${s.id}/${roleSlug}-${agentId}`;
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        this.emit('agent-output', {
+          pipelineId: s.id,
+          agentId,
+          chunk: '[ERROR] Failed to create worktree: ' + msg,
+        });
+        this.updateAgentInState(agentId, { status: 'failed', finishedAt: timestamp() });
+        throw new Error('Worktree creation failed for "' + roleSlug + '" (' + agentId + '): ' + msg);
+      }
     }
 
     const timeoutMs = this.config.execution.timeout_per_agent_minutes * 60_000;
@@ -186,7 +212,7 @@ export class Orchestrator extends EventEmitter {
         : inputContent;
 
       const prompt = buildPrompt(role, this.roles, fullInput, pipelineContext);
-      const cwd = worktreePath || this.projectPath;
+      const cwd = worktreePath || repoPath || this.projectPath;
       const proc = spawnAgent(role, cwd, prompt);
 
       const outputLines: string[] = [];
@@ -194,14 +220,16 @@ export class Orchestrator extends EventEmitter {
 
       this.activeAgentCount++;
 
-      proc.stdout.on('line', (line: string) => {
-        outputLines.push(line);
+      proc.stdout.on('data', (chunk: string) => {
         this.emit('agent-output', {
           pipelineId: this.getState().id,
           agentId,
-          chunk: line,
+          chunk,
         });
+      });
 
+      proc.stdout.on('line', (line: string) => {
+        outputLines.push(line);
         const cmd = parseOutputLine(line);
         if (cmd) {
           commands.push(cmd);
@@ -212,7 +240,7 @@ export class Orchestrator extends EventEmitter {
         this.emit('agent-output', {
           pipelineId: this.getState().id,
           agentId,
-          chunk: '[stderr] ' + line,
+          chunk: '[stderr] ' + line + '\n',
         });
       });
 

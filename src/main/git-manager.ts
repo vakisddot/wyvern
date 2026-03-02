@@ -5,7 +5,7 @@ const EXEC_OPTS = { stdio: 'pipe' as const };
 
 export class GitManager {
   createFeatureBranch(repoPath: string, pipelineId: string): string {
-    const branchName = `wyvern/${pipelineId}`;
+    const branchName = `wyvern/${pipelineId}/main`;
     try {
       execSync(`git show-ref --verify --quiet refs/heads/${branchName}`, { ...EXEC_OPTS, cwd: repoPath });
     } catch {
@@ -17,7 +17,7 @@ export class GitManager {
   createWorktree(repoPath: string, pipelineId: string, agentId: string, roleSlug: string): string {
     const worktreePath = path.join(repoPath, '.wyvern-worktrees', agentId);
     const taskBranch = `wyvern/${pipelineId}/${roleSlug}-${agentId}`;
-    const featureBranch = `wyvern/${pipelineId}`;
+    const featureBranch = `wyvern/${pipelineId}/main`;
     execSync(
       `git worktree add -b ${taskBranch} "${worktreePath}" ${featureBranch}`,
       { ...EXEC_OPTS, cwd: repoPath }

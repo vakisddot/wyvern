@@ -44,6 +44,15 @@ export function loadConfig(projectPath: string): WyvernConfig {
     throw new Error('Config missing required fields: cost.warn_threshold_usd, cost.hard_limit_usd');
   }
 
+  let gitConfig: { use_worktrees: boolean } | undefined;
+  const git = raw.git as Record<string, unknown> | undefined;
+  if (git) {
+    if (typeof git.use_worktrees !== 'boolean') {
+      throw new Error('Config field git.use_worktrees must be a boolean');
+    }
+    gitConfig = { use_worktrees: git.use_worktrees };
+  }
+
   const resolvedRepos: Record<string, string> = {};
   for (const [alias, repoPath] of Object.entries(repos)) {
     resolvedRepos[alias] = resolveTilde(repoPath);
@@ -52,6 +61,7 @@ export function loadConfig(projectPath: string): WyvernConfig {
   return {
     project: { name: project.name as string },
     repos: resolvedRepos,
+    ...(gitConfig ? { git: gitConfig } : {}),
     execution: {
       max_parallel_agents: execution.max_parallel_agents as number,
       timeout_per_agent_minutes: execution.timeout_per_agent_minutes as number,

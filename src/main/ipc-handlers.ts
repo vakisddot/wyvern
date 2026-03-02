@@ -49,8 +49,13 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC_CHANNELS.START_PIPELINE, async (_event, directive: string) => {
     if (!ctx.orchestrator) throw new Error('No project loaded');
-    const state = await ctx.orchestrator.runPipeline(directive);
-    return state.id;
+    try {
+      const state = await ctx.orchestrator.runPipeline(directive);
+      return state.id;
+    } catch (err) {
+      console.error('[Wyvern] Pipeline failed:', err);
+      throw err;
+    }
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_PIPELINES, async () => {

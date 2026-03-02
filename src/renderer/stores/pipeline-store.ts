@@ -27,12 +27,17 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
 
   updatePipeline: (state) => set((prev) => {
     const idx = prev.pipelines.findIndex((p) => p.id === state.id);
+    let pipelines: PipelineState[];
     if (idx === -1) {
-      return { pipelines: [...prev.pipelines, state] };
+      pipelines = [...prev.pipelines, state];
+    } else {
+      pipelines = [...prev.pipelines];
+      pipelines[idx] = state;
     }
-    const next = [...prev.pipelines];
-    next[idx] = state;
-    return { pipelines: next };
+    const activePipelineId = state.status === 'active'
+      ? state.id
+      : prev.activePipelineId;
+    return { pipelines, activePipelineId };
   }),
 
   addPipeline: (state) => set((prev) => ({
