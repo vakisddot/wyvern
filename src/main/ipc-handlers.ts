@@ -1,36 +1,23 @@
 import { BrowserWindow, ipcMain, dialog } from 'electron';
 import fs from 'fs';
-import { IPC_CHANNELS } from '../types';
+import { IPC_CHANNELS, WyvernConfig, RoleDefinition } from '../types';
 import { Orchestrator } from './orchestrator';
 import { PipelineManager } from './pipeline-manager';
-import { loadConfig, loadRoles, validateRoles } from './config-loader';
+import { GitManager } from './git-manager';
+import { openProject, checkCliTools } from './project-manager';
+
+export interface ProjectContext {
+  orchestrator: Orchestrator | null;
+  projectPath: string | null;
+  config: WyvernConfig | null;
+  roles: Record<string, RoleDefinition> | null;
+}
 
 export function registerIpcHandlers(
   mainWindow: BrowserWindow,
-  orchestrator: Orchestrator | null,
   pipelineManager: PipelineManager,
-  projectPath: string | null,
+  ctx: ProjectContext,
 ): void {
-  ipcMain.handle(IPC_CHANNELS.START_PIPELINE, async (_event, directive: string) => {
-    if (!orchestrator) throw new Error('No project loaded');
-    const state = await orchestrator.runPipeline(directive);
-    return state.id;
-  });
-
-  ipcMain.handle(IPC_CHANNELS.GET_PIPELINES, async () => {
-    if (!projectPath) return [];
-    return pipelineManager.listPipelines(projectPath);
-  });
-
-  ipcMain.handle(IPC_CHANNELS.GET_PIPELINE_STATE, async (_event, id: string) => {
-    if (!projectPath) throw new Error('No project loaded');
-    return pipelineManager.loadPipeline(projectPath, id);
-  });
-
-  ipcMain.handle(IPC_CHANNELS.GET_ARTIFACT, async (_event, filePath: string) => {
-    return fs.readFileSync(filePath, 'utf-8');
-  });
-
   ipcMain.handle(IPC_CHANNELS.OPEN_PROJECT, async () => {
     const result = await dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory'],
@@ -40,34 +27,52 @@ export function registerIpcHandlers(
     if (result.canceled || result.filePaths.length === 0) return null;
 
     const selectedPath = result.filePaths[0];
-    const config = loadConfig(selectedPath);
-    const roles = loadRoles(selectedPath);
-    validateRoles(roles);
+    const { config, roles } = openProject(selectedPath);
 
-    return { config, roles };
+    ctx.projectPath = selectedPath;
+    ctx.config = config;
+    ctx.roles = roles;
+
+    const gitManager = new GitManager();
+    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, pipelineManager, gitManager);
+    forwardOrchestratorEvents(mainWindow, ctx.orchestrator);
+
+    mainWindow.setTitle(`Wyvern \u2014 ${config.project.name}`);
+
+    return { config, roles, projectPath: selectedPath };
   });
 
   ipcMain.handle(IPC_CHANNELS.CHECK_CLI_TOOLS, async () => {
-    const { execSync } = await import('child_process');
-    const missing: string[] = [];
+    if (!ctx.roles) return { missing: [] };
+    return checkCliTools(ctx.roles);
+  });
 
-    for (const tool of ['claude', 'gemini']) {
-      try {
-        execSync(`${tool} --version`, { stdio: 'pipe' });
-      } catch {
-        missing.push(tool);
-      }
-    }
+  ipcMain.handle(IPC_CHANNELS.START_PIPELINE, async (_event, directive: string) => {
+    if (!ctx.orchestrator) throw new Error('No project loaded');
+    const state = await ctx.orchestrator.runPipeline(directive);
+    return state.id;
+  });
 
-    return { missing };
+  ipcMain.handle(IPC_CHANNELS.GET_PIPELINES, async () => {
+    if (!ctx.projectPath) return [];
+    return pipelineManager.listPipelines(ctx.projectPath);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_PIPELINE_STATE, async (_event, id: string) => {
+    if (!ctx.projectPath) throw new Error('No project loaded');
+    return pipelineManager.loadPipeline(ctx.projectPath, id);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.GET_ARTIFACT, async (_event, filePath: string) => {
+    return fs.readFileSync(filePath, 'utf-8');
   });
 
   ipcMain.on(IPC_CHANNELS.APPROVE_CHECKPOINT, (_event, _pipelineId: string, agentId: string, response: string) => {
-    if (orchestrator) orchestrator.resolveCheckpoint(agentId, response);
+    if (ctx.orchestrator) ctx.orchestrator.resolveCheckpoint(agentId, response);
   });
 
   ipcMain.on(IPC_CHANNELS.REJECT_CHECKPOINT, (_event, _pipelineId: string, agentId: string, reason: string) => {
-    if (orchestrator) orchestrator.rejectCheckpoint(agentId, reason);
+    if (ctx.orchestrator) ctx.orchestrator.rejectCheckpoint(agentId, reason);
   });
 }
 

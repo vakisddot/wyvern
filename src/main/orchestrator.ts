@@ -10,6 +10,14 @@ import { buildPrompt } from './prompt-builder';
 import { parseOutputLine } from './output-parser';
 import { GitManager } from './git-manager';
 
+function extractCostFromOutput(lines: string[]): number {
+  for (let i = lines.length - 1; i >= 0; i--) {
+    const match = lines[i].match(/\$(\d+\.\d{2,})/);
+    if (match) return parseFloat(match[1]);
+  }
+  return 0;
+}
+
 function resolveOutputFile(filename: string, outputDir: string, projectPath: string): string {
   const inOutputDir = path.join(outputDir, filename);
   if (fs.existsSync(inOutputDir)) return inOutputDir;
@@ -28,6 +36,7 @@ export class Orchestrator extends EventEmitter {
   private gitManager: GitManager;
   private state: PipelineState | null;
   private checkpointResolvers: Map<string, { resolve: (response: string) => void; reject: (reason: string) => void }>;
+  private activeAgentCount: number;
 
   constructor(
     config: WyvernConfig,
@@ -44,6 +53,7 @@ export class Orchestrator extends EventEmitter {
     this.gitManager = gitManager;
     this.state = null;
     this.checkpointResolvers = new Map();
+    this.activeAgentCount = 0;
   }
 
   private getState(): PipelineState {
@@ -168,6 +178,8 @@ export class Orchestrator extends EventEmitter {
       taskBranch = `wyvern/${s.id}/${roleSlug}-${agentId}`;
     }
 
+    const timeoutMs = this.config.execution.timeout_per_agent_minutes * 60_000;
+
     for (;;) {
       const fullInput = accumulatedContext
         ? inputContent + '\n\n--- Previous Context ---\n' + accumulatedContext
@@ -179,6 +191,8 @@ export class Orchestrator extends EventEmitter {
 
       const outputLines: string[] = [];
       const commands: AgentCommand[] = [];
+
+      this.activeAgentCount++;
 
       proc.stdout.on('line', (line: string) => {
         outputLines.push(line);
@@ -202,7 +216,46 @@ export class Orchestrator extends EventEmitter {
         });
       });
 
-      const { code } = await proc.onExit;
+      const timeoutPromise = new Promise<{ code: number; timedOut: true }>((resolve) => {
+        setTimeout(() => resolve({ code: -1, timedOut: true }), timeoutMs);
+      });
+
+      const exitResult = await Promise.race([
+        proc.onExit.then(r => ({ ...r, timedOut: false as const })),
+        timeoutPromise,
+      ]);
+
+      this.activeAgentCount--;
+
+      if (exitResult.timedOut) {
+        proc.kill();
+        this.updateAgentInState(agentId, {
+          status: 'failed',
+          finishedAt: timestamp(),
+        });
+        throw new Error('Agent "' + roleSlug + '" (' + agentId + ') timed out after ' + this.config.execution.timeout_per_agent_minutes + ' minutes');
+      }
+
+      const code = exitResult.code;
+
+      const agentCost = extractCostFromOutput(outputLines);
+      if (agentCost > 0) {
+        this.updateAgentInState(agentId, { costUsd: agentCost });
+        this.state = { ...this.getState(), totalCostUsd: this.getState().totalCostUsd + agentCost };
+        this.saveState();
+
+        if (this.getState().totalCostUsd >= this.config.cost.hard_limit_usd) {
+          this.updateAgentInState(agentId, { status: 'failed', finishedAt: timestamp() });
+          throw new Error('Pipeline cost ($' + this.getState().totalCostUsd.toFixed(2) + ') exceeded hard limit ($' + this.config.cost.hard_limit_usd.toFixed(2) + ')');
+        }
+        if (this.getState().totalCostUsd >= this.config.cost.warn_threshold_usd) {
+          this.emit('agent-output', {
+            pipelineId: this.getState().id,
+            agentId,
+            chunk: '[COST WARNING] Pipeline cost: $' + this.getState().totalCostUsd.toFixed(2) + ' (warn threshold: $' + this.config.cost.warn_threshold_usd.toFixed(2) + ')',
+          });
+        }
+      }
 
       const doneCmd = commands.find(c => c.type === 'DONE') as Extract<AgentCommand, { type: 'DONE' }> | undefined;
       const spawnCmds = commands.filter(c => c.type === 'SPAWN') as Extract<AgentCommand, { type: 'SPAWN' }>[];
@@ -244,7 +297,7 @@ export class Orchestrator extends EventEmitter {
           continue;
         }
 
-        const childResults: string[] = [];
+        const validSpawns: Array<{ spawnCmd: Extract<AgentCommand, { type: 'SPAWN' }>; childInputPath: string }> = [];
 
         for (const spawnCmd of spawnCmds) {
           if (!role.can_spawn.includes(spawnCmd.role)) {
@@ -274,19 +327,55 @@ export class Orchestrator extends EventEmitter {
             spawnedChildren: [...this.getState().agents[agentId].spawnedChildren, spawnCmd.role],
           });
 
-          const childOutputPath = await this.invokeAgent(
-            spawnCmd.role,
-            [childInputPath],
-            agentId,
-            depth + 1
-          );
-
-          const childOutput = readArtifact(childOutputPath);
-          childResults.push('Result from ' + spawnCmd.role + ':\n' + childOutput);
+          validSpawns.push({ spawnCmd, childInputPath });
         }
 
-        if (childResults.length > 0) {
-          accumulatedContext += '\n' + childResults.join('\n\n');
+        if (validSpawns.length > 0) {
+          const maxParallel = this.config.execution.max_parallel_agents;
+          const childResults: string[] = [];
+          let running = 0;
+          let idx = 0;
+
+          await new Promise<void>((resolveAll) => {
+            const results: Array<{ index: number; text: string }> = [];
+
+            const launchNext = (): void => {
+              if (idx >= validSpawns.length && running === 0) {
+                for (const r of results.sort((a, b) => a.index - b.index)) {
+                  childResults.push(r.text);
+                }
+                resolveAll();
+                return;
+              }
+
+              while (running < maxParallel && idx < validSpawns.length) {
+                const currentIdx = idx;
+                const { spawnCmd, childInputPath } = validSpawns[currentIdx];
+                idx++;
+                running++;
+
+                this.invokeAgent(spawnCmd.role, [childInputPath], agentId, depth + 1)
+                  .then((childOutputPath) => {
+                    const childOutput = readArtifact(childOutputPath);
+                    results.push({ index: currentIdx, text: 'Result from ' + spawnCmd.role + ':\n' + childOutput });
+                  })
+                  .catch((err: unknown) => {
+                    const msg = err instanceof Error ? err.message : String(err);
+                    results.push({ index: currentIdx, text: 'SPAWN FAILED for ' + spawnCmd.role + ': ' + msg });
+                  })
+                  .finally(() => {
+                    running--;
+                    launchNext();
+                  });
+              }
+            };
+
+            launchNext();
+          });
+
+          if (childResults.length > 0) {
+            accumulatedContext += '\n' + childResults.join('\n\n');
+          }
         }
         continue;
       }

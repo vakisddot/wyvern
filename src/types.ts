@@ -101,7 +101,7 @@ export interface WyvernAPI {
   getPipelines: () => Promise<PipelineState[]>;
   getPipelineState: (id: string) => Promise<PipelineState>;
   getArtifact: (filePath: string) => Promise<string>;
-  openProject: () => Promise<{ config: WyvernConfig; roles: Record<string, RoleDefinition> } | null>;
+  openProject: () => Promise<{ config: WyvernConfig; roles: Record<string, RoleDefinition>; projectPath: string } | null>;
   checkCliTools: () => Promise<{ missing: string[] }>;
   onPipelineUpdate: (cb: (state: PipelineState) => void) => () => void;
   onAgentOutput: (cb: (data: { pipelineId: string; agentId: string; chunk: string }) => void) => () => void;

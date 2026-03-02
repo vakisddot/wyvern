@@ -88,16 +88,31 @@ function MessageRenderer({ msg, onApprove, onReject, onAbort }: {
   }
 }
 
-export function ChatPanel() {
+export function ChatPanel({ projectPath }: { projectPath: string }) {
   const messages = useChatStore((s) => s.messages);
   const addMessage = useChatStore((s) => s.addMessage);
   const pipeline = usePipelineStore((s) => s.getActivePipeline());
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const [prevStatus, setPrevStatus] = useState<string | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
+
+  const currentStatus = pipeline?.status ?? null;
+  useEffect(() => {
+    if (prevStatus === 'active' && currentStatus && currentStatus !== 'active' && pipeline) {
+      const agentCount = Object.keys(pipeline.agents).length;
+      const elapsed = ((pipeline.updatedAt - pipeline.createdAt) / 1000).toFixed(0);
+      addMessage({
+        type: 'status',
+        content: `Pipeline ${currentStatus}. ${agentCount} agent(s), $${pipeline.totalCostUsd.toFixed(2)} total cost, ${elapsed}s elapsed.`,
+        pipelineId: pipeline.id,
+      });
+    }
+    setPrevStatus(currentStatus);
+  }, [currentStatus]);
 
   let pendingCheckpoint: ChatMessage | undefined;
   for (let i = messages.length - 1; i >= 0; i--) {
@@ -116,8 +131,8 @@ export function ChatPanel() {
       }
     } else if (!isActive) {
       addMessage({ type: 'directive', content: text });
-      window.wyvern.startPipeline(text, '').catch(() => {
-        addMessage({ type: 'status', content: 'Failed to start pipeline — no project loaded' });
+      window.wyvern.startPipeline(text, projectPath).catch(() => {
+        addMessage({ type: 'status', content: 'Failed to start pipeline.' });
       });
     }
 
@@ -162,7 +177,7 @@ export function ChatPanel() {
       </div>
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-3">
         {messages.length === 0 && (
-          <p className="text-xs text-gray-500 text-center mt-8">Enter a directive to start a pipeline</p>
+          <p className="text-xs text-gray-500 text-center mt-8">Type a directive to get started. Wyvern will coordinate your AI team to execute it.</p>
         )}
         {messages.map((msg) => (
           <MessageRenderer

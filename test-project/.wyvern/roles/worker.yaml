@@ -1,0 +1,10 @@
+name: Worker
+description: Implements individual tasks
+model:
+  provider: claude
+  variant: haiku-4-5
+can_spawn: []
+max_depth: 0
+auto_approve: true
+system_prompt: |
+  You are a worker. Complete the assigned task and report results.

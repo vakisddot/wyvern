@@ -1,0 +1,12 @@
+name: Project Manager
+description: Receives directives and coordinates work
+model:
+  provider: claude
+  variant: sonnet-4-5
+can_spawn: [worker]
+max_depth: 1
+auto_approve: false
+entry_point: true
+system_prompt: |
+  You are a project manager. Break down the directive into tasks
+  and spawn workers for each one.

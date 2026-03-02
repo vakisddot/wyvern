@@ -1,6 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { PipelineManager } from './main/pipeline-manager';
-import { registerIpcHandlers } from './main/ipc-handlers';
+import { registerIpcHandlers, ProjectContext } from './main/ipc-handlers';
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
@@ -11,12 +11,20 @@ if (require('electron-squirrel-startup')) {
 
 const pipelineManager = new PipelineManager();
 
+const projectContext: ProjectContext = {
+  orchestrator: null,
+  projectPath: null,
+  config: null,
+  roles: null,
+};
+
 let mainWindow: BrowserWindow | null = null;
 
 const createWindow = (): void => {
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
+    title: 'Wyvern',
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       contextIsolation: true,
@@ -29,7 +37,7 @@ const createWindow = (): void => {
     mainWindow.webContents.openDevTools();
   }
 
-  registerIpcHandlers(mainWindow, null, pipelineManager, null);
+  registerIpcHandlers(mainWindow, pipelineManager, projectContext);
 };
 
 app.on('ready', createWindow);
