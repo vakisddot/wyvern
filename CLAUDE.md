@@ -40,6 +40,12 @@ Reference mockup: `docs/plan/interface-example.jpg`
 
 Quick summary: dark theme, JetBrains Mono everywhere, CLI/ImGui aesthetic with `[bracketed]` buttons/tabs, hexagonal agent nodes with colored borders + glow, no gradients (except body background), no pill buttons.
 
+## Build Environment Gotchas
+
+- TypeScript ~4.5.4 is old. `@types/node` from Electron 40 uses syntax too new for it — `skipLibCheck: true` in tsconfig is load-bearing. Never run raw `tsc --noEmit` without the tsconfig.
+- No `ts-node` installed. Compilation goes through Webpack (Electron Forge). Verify code with `npm run lint` or `electron-forge start`, never raw `tsc`.
+- ESLint enforces named imports from packages that support them (e.g., `import { load } from 'js-yaml'` not `import yaml from 'js-yaml'`).
+
 ## Don'ts
 
 - Don't add features not in the design doc or current step's plan.
