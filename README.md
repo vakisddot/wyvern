@@ -56,7 +56,8 @@ repos:
 
 execution:
   max_parallel_agents: 4
-  timeout_per_agent_minutes: 10
+  timeout_per_agent_minutes: 5
+  auto_close_terminals: true
 ```
 
 | Field | Required | Description |
@@ -65,6 +66,7 @@ execution:
 | `repos` | yes | Alias-to-path map. Use `{}` if no repos needed |
 | `execution.max_parallel_agents` | yes | Max agents running concurrently |
 | `execution.timeout_per_agent_minutes` | yes | Kill an agent after this many minutes |
+| `execution.auto_close_terminals` | no | Close agent terminal windows when done. Defaults to `true` |
 
 ### Role Definitions
 
@@ -72,7 +74,6 @@ Each `.yaml` file in `.wyvern/roles/` defines one agent role. The filename (with
 
 ```yaml
 # .wyvern/roles/pm.yaml
-name: Product Manager
 description: Receives directives and coordinates work
 model:
   provider: claude
@@ -89,8 +90,7 @@ system_prompt: |
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `name` | yes | Display name in the GUI |
-| `description` | yes | One-line description (shown to parent agents) |
+| `description` | yes | One-line description (shown in GUI and to parent agents) |
 | `model.provider` | yes | CLI command name: `claude`, `gemini`, etc. |
 | `model.variant` | yes | Model variant hint (e.g. `sonnet-4-6`, `haiku-4-5`) |
 | `can_spawn` | yes | List of role slugs this agent can delegate to. `[]` for leaf agents |
@@ -113,10 +113,10 @@ Agents are stateless CLI processes. They don't share memory - they communicate t
 ### DONE - Complete your task
 
 ```
-[WYVERN:DONE] output=results.md
+[WYVERN:DONE]
 ```
 
-Write your output to a file, then emit this command. Every agent must emit exactly one DONE. The output file bubbles up to the parent agent.
+Emit this command when the task is finished. Every agent must emit exactly one DONE.
 
 ### SPAWN - Delegate to a child agent
 

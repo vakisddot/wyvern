@@ -1,6 +1,7 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, nativeImage } from 'electron';
 import { PipelineManager } from './main/pipeline-manager';
 import { registerIpcHandlers, ProjectContext } from './main/ipc-handlers';
+import iconDataUrl from './renderer/assets/wyvern-logo.png';
 
 declare const MAIN_WINDOW_WEBPACK_ENTRY: string;
 declare const MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY: string;
@@ -21,10 +22,13 @@ const projectContext: ProjectContext = {
 let mainWindow: BrowserWindow | null = null;
 
 const createWindow = (): void => {
+  const icon = nativeImage.createFromDataURL(iconDataUrl);
+
   mainWindow = new BrowserWindow({
     width: 1400,
     height: 900,
     title: 'Wyvern',
+    icon,
     webPreferences: {
       preload: MAIN_WINDOW_PRELOAD_WEBPACK_ENTRY,
       contextIsolation: true,
