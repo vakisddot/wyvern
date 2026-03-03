@@ -34,7 +34,7 @@ function buildWyvernInstructions(canSpawn: string[], agentDir: string): string {
     lines.push('```');
   } else {
     lines.push('COMPLETION: When your work is done, the LAST line of output.md must be:');
-    lines.push('   [WYVERN:DONE] output=output.md');
+    lines.push('   [WYVERN:DONE]');
     lines.push('');
     lines.push('CHECKPOINT: To pause and ask the CEO for input:');
     lines.push('   [WYVERN:CHECKPOINT] message=<your question>');
@@ -43,7 +43,7 @@ function buildWyvernInstructions(canSpawn: string[], agentDir: string): string {
     lines.push('```');
     lines.push('Your research, analysis, or deliverable here...');
     lines.push('');
-    lines.push('[WYVERN:DONE] output=output.md');
+    lines.push('[WYVERN:DONE]');
     lines.push('```');
   }
 

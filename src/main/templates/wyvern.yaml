@@ -4,3 +4,4 @@ repos: {}
 execution:
   max_parallel_agents: 4
   timeout_per_agent_minutes: 5
+  auto_close_terminals: true

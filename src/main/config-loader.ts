@@ -39,6 +39,10 @@ export function loadConfig(projectPath: string): WyvernConfig {
     throw new Error('Config missing required fields: execution.max_parallel_agents, execution.timeout_per_agent_minutes');
   }
 
+  const autoCloseTerminals = typeof execution.auto_close_terminals === 'boolean'
+    ? execution.auto_close_terminals
+    : true;
+
   const resolvedRepos: Record<string, string> = {};
   for (const [alias, repoPath] of Object.entries(repos)) {
     resolvedRepos[alias] = resolveTilde(repoPath);
@@ -50,6 +54,7 @@ export function loadConfig(projectPath: string): WyvernConfig {
     execution: {
       max_parallel_agents: execution.max_parallel_agents as number,
       timeout_per_agent_minutes: execution.timeout_per_agent_minutes as number,
+      auto_close_terminals: autoCloseTerminals,
     },
   };
 }

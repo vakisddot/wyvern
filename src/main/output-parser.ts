@@ -63,12 +63,8 @@ export function parseOutputLine(line: string): AgentCommand | null {
         : raw;
       return message ? { type: 'CHECKPOINT', message } : null;
     }
-    case 'DONE': {
-      const kv = parseKeyValue(remainder);
-      const output = kv['output'];
-      if (!output) return null;
-      return { type: 'DONE', output };
-    }
+    case 'DONE':
+      return { type: 'DONE' };
     default:
       return null;
   }

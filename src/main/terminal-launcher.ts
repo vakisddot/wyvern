@@ -37,6 +37,12 @@ export function openAgentTerminal(role: RoleDefinition, cwd: string, inputFilePa
     stdio: 'ignore',
     cwd: winCwd,
   });
-  child.unref();
   return child;
+}
+
+export function killTerminal(proc: ChildProcess): void {
+  if (!proc.pid) return;
+  try {
+    spawn('taskkill', ['/F', '/T', '/PID', String(proc.pid)], { stdio: 'ignore' });
+  } catch { /* process already gone */ }
 }

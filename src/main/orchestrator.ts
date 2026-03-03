@@ -7,7 +7,7 @@ import { ensureAgentDir, writeArtifact, readArtifact } from './artifact-manager'
 import { generateId, timestamp } from './utils';
 import { buildPrompt } from './prompt-builder';
 import { parseOutputLine } from './output-parser';
-import { openAgentTerminal } from './terminal-launcher';
+import { openAgentTerminal, killTerminal } from './terminal-launcher';
 import { watchForOutput } from './file-watcher';
 
 const OUTPUT_FILE = 'output.md';
@@ -184,8 +184,14 @@ export class Orchestrator extends EventEmitter {
         }
       }
 
-      // Read and parse the output file
+      // Read the output before killing - agent may still be flushing
       const outputContent = readArtifact(outputFilePath);
+
+      // Terminal's job is done - kill it if configured
+      processExited.catch(() => { /* expected after kill or natural exit */ });
+      if (this.config.execution.auto_close_terminals) {
+        killTerminal(proc);
+      }
       const outputLines = outputContent.split('\n');
       const commands: AgentCommand[] = [];
       for (const line of outputLines) {
@@ -196,7 +202,7 @@ export class Orchestrator extends EventEmitter {
       // Delete output file so next iteration can watch for a fresh one
       try { fs.unlinkSync(outputFilePath); } catch { /* ignore */ }
 
-      const doneCmd = commands.find(c => c.type === 'DONE') as Extract<AgentCommand, { type: 'DONE' }> | undefined;
+      const hasDone = commands.some(c => c.type === 'DONE');
       const spawnCmds = commands.filter(c => c.type === 'SPAWN') as Extract<AgentCommand, { type: 'SPAWN' }>[];
       const checkpointCmd = commands.find(c => c.type === 'CHECKPOINT') as Extract<AgentCommand, { type: 'CHECKPOINT' }> | undefined;
 
@@ -306,8 +312,8 @@ export class Orchestrator extends EventEmitter {
         continue;
       }
 
-      if (doneCmd) {
-        const artifactPath = writeArtifact(agentDir, doneCmd.output, outputContent);
+      if (hasDone) {
+        const artifactPath = writeArtifact(agentDir, OUTPUT_FILE, outputContent);
 
         this.updateAgentInState(agentId, {
           status: 'done',

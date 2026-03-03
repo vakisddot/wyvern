@@ -5,7 +5,6 @@ import { ChatPanel } from '../panels/ChatPanel';
 import { DetailPanel } from '../panels/DetailPanel';
 import { TitleBar } from '../shared/TitleBar';
 import { ResizeHandle } from '../shared/ResizeHandle';
-import { usePipelineStore } from '../../stores/pipeline-store';
 import wyvernLogo from '../../assets/wyvern-logo.png';
 
 export interface ProjectData {
@@ -19,9 +18,7 @@ const RIGHT_DEFAULT = 350;
 const MIN_PANEL = 180;
 const MIN_CENTER = 300;
 
-export function Workspace({ project, onChangeProject, onProjectUpdate }: { project: ProjectData; onChangeProject: () => void; onProjectUpdate: (data: ProjectData) => void }) {
-  const pipeline = usePipelineStore((s) => s.getActivePipeline());
-  const [leftWidth, setLeftWidth] = useState(LEFT_DEFAULT);
+export function Workspace({ project, onChangeProject, onProjectUpdate }: { project: ProjectData; onChangeProject: () => void; onProjectUpdate: (data: ProjectData) => void }) {  const [leftWidth, setLeftWidth] = useState(LEFT_DEFAULT);
   const [rightWidth, setRightWidth] = useState(RIGHT_DEFAULT);
   const containerRef = useRef<HTMLDivElement>(null);
 

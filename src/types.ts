@@ -24,6 +24,7 @@ export interface WyvernConfig {
   execution: {
     max_parallel_agents: number;
     timeout_per_agent_minutes: number;
+    auto_close_terminals: boolean;
   };
 }
 
@@ -64,7 +65,7 @@ export interface PipelineState {
 export type AgentCommand =
   | { type: 'SPAWN'; role: string; input: string }
   | { type: 'CHECKPOINT'; message: string }
-  | { type: 'DONE'; output: string };
+  | { type: 'DONE' };
 
 // --- Config update result (returned by save/create/delete operations) ---
 
