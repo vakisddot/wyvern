@@ -6,7 +6,7 @@
 
 AI Agent Orchestrator - a desktop app that lets you coordinate teams of AI agents to execute complex tasks.
 
-You give a directive in plain language. Wyvern breaks it down, spawns AI agents (Claude, Gemini, or any CLI LLM), and orchestrates them in a recursive tree. You stay in the loop as CEO - approving plans, reviewing checkpoints, and watching agents work in real time.
+You give a directive in plain language. Wyvern breaks it down, spawns AI agents, and orchestrates them in a recursive tree. You stay in the loop as CEO - approving plans, reviewing checkpoints, and watching agents work in real time.
 
 ## Prerequisites
 
