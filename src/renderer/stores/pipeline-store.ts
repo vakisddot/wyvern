@@ -6,10 +6,12 @@ interface PipelineStore {
   activePipelineId: string | null;
   selectedAgentId: string | null;
   selectedRoleSlug: string | null;
+  creatingRole: boolean;
 
   setActivePipeline: (id: string) => void;
   selectAgent: (id: string | null) => void;
   selectRole: (slug: string | null) => void;
+  setCreatingRole: (v: boolean) => void;
   updatePipeline: (state: PipelineState) => void;
   addPipeline: (state: PipelineState) => void;
   setPipelines: (pipelines: PipelineState[]) => void;
@@ -23,12 +25,15 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
   activePipelineId: null,
   selectedAgentId: null,
   selectedRoleSlug: null,
+  creatingRole: false,
 
   setActivePipeline: (id) => set({ activePipelineId: id }),
 
-  selectAgent: (id) => set({ selectedAgentId: id, selectedRoleSlug: null }),
+  selectAgent: (id) => set({ selectedAgentId: id, selectedRoleSlug: null, creatingRole: false }),
 
-  selectRole: (slug) => set({ selectedRoleSlug: slug, selectedAgentId: null }),
+  selectRole: (slug) => set({ selectedRoleSlug: slug, selectedAgentId: null, creatingRole: false }),
+
+  setCreatingRole: (v) => set(v ? { creatingRole: true, selectedAgentId: null, selectedRoleSlug: null } : { creatingRole: false }),
 
   updatePipeline: (state) => set((prev) => {
     const idx = prev.pipelines.findIndex((p) => p.id === state.id);

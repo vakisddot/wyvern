@@ -1,6 +1,6 @@
 # Wyvern
 
-AI Agent Orchestrator - a desktop app that lets you coordinate teams of AI agents to execute complex tasks.
+AI Agent Orchestrator — a desktop app that lets you coordinate teams of AI agents to execute complex tasks.
 
 You give a directive in plain language. Wyvern breaks it down, spawns AI agents (Claude, Gemini, or any CLI LLM), and orchestrates them in a recursive tree. You stay in the loop as CEO — approving plans, reviewing checkpoints, and watching agents work in real time.
 
@@ -50,10 +50,6 @@ repos:
   api: ~/code/my-api
   web: ~/code/my-web
 
-# Optional. Omit this section to disable worktrees.
-git:
-  use_worktrees: true
-
 execution:
   max_parallel_agents: 4
   timeout_per_agent_minutes: 10
@@ -63,7 +59,6 @@ execution:
 |-------|----------|-------------|
 | `project.name` | yes | Display name shown in the title bar |
 | `repos` | yes | Alias-to-path map. Use `{}` if no repos needed |
-| `git.use_worktrees` | no | Give each agent an isolated git worktree. Default: `true` |
 | `execution.max_parallel_agents` | yes | Max agents running concurrently |
 | `execution.timeout_per_agent_minutes` | yes | Kill an agent after this many minutes |
 
@@ -73,8 +68,8 @@ Each `.yaml` file in `.wyvern/roles/` defines one agent role. The filename (with
 
 ```yaml
 # .wyvern/roles/pm.yaml
-name: Project Manager
-description: Breaks down directives and coordinates the team
+name: Product Manager
+description: Receives directives and coordinates work
 model:
   provider: claude
   variant: sonnet-4-5
@@ -83,8 +78,8 @@ max_depth: 2
 auto_approve: false
 entry_point: true
 system_prompt: |
-  You are a project manager. Analyze the directive, break it into
-  tasks, and spawn the appropriate agents. Review their output
+  You are a product manager. Break down the directive into
+  tasks and spawn the appropriate agents. Review their output
   before marking your work as done.
 ```
 
@@ -98,7 +93,7 @@ system_prompt: |
 | `max_depth` | yes | Max spawning recursion depth. Must be `>= 1` if `can_spawn` is non-empty, `0` for leaf agents |
 | `auto_approve` | yes | If `true`, agent runs with `--dangerously-skip-permissions` (Claude) |
 | `entry_point` | no | Exactly one role must set this to `true`. This is the first agent spawned |
-| `repo` | no | Repo alias from `wyvern.yaml` `repos` map. Agent's working directory |
+| `repo` | no | Repo alias from `wyvern.yaml` `repos` map. Sets the agent's working directory |
 | `system_prompt` | yes | Instructions given to the agent. Describe its role, goals, and constraints |
 
 **Validation rules:**
@@ -145,121 +140,15 @@ Wyvern automatically injects instructions about SPAWN, CHECKPOINT, and DONE into
 
 You don't need to explain the Wyvern command format — that's handled automatically.
 
-### Example: Two-tier setup
-
-**pm.yaml** — Manager that delegates:
-```yaml
-name: Project Manager
-description: Coordinates the team
-model:
-  provider: claude
-  variant: sonnet-4-5
-can_spawn: [worker]
-max_depth: 1
-auto_approve: false
-entry_point: true
-system_prompt: |
-  You are a project manager. Break the directive into tasks.
-  Spawn a worker for each task. Review their results and
-  compile a final summary. Checkpoint before starting if
-  the directive is ambiguous.
-```
-
-**worker.yaml** — Leaf agent that does the work:
-```yaml
-name: Worker
-description: Implements individual tasks
-model:
-  provider: claude
-  variant: haiku-4-5
-can_spawn: []
-max_depth: 0
-auto_approve: true
-system_prompt: |
-  You are a worker. Complete the assigned task and write
-  your results to an output file. Be thorough but concise.
-```
-
-### Example: Multi-repo with specialization
-
-```yaml
-# .wyvern/roles/architect.yaml
-name: Architect
-description: Designs system architecture and coordinates implementation
-model:
-  provider: claude
-  variant: opus-4-6
-can_spawn: [backend-dev, frontend-dev]
-max_depth: 2
-auto_approve: false
-entry_point: true
-system_prompt: |
-  You are the architect. Design the solution, then spawn
-  backend-dev and frontend-dev to implement it. Review
-  their code before finalizing.
-```
-
-```yaml
-# .wyvern/roles/backend-dev.yaml
-name: Backend Developer
-description: Implements API endpoints and server logic
-model:
-  provider: claude
-  variant: sonnet-4-5
-can_spawn: []
-max_depth: 0
-auto_approve: true
-repo: api
-system_prompt: |
-  You are a backend developer working in a Node.js API.
-  Implement the task described in your input. Write clean,
-  tested code. Output a summary of changes.
-```
-
-```yaml
-# .wyvern/roles/frontend-dev.yaml
-name: Frontend Developer
-description: Implements UI components and pages
-model:
-  provider: claude
-  variant: sonnet-4-5
-can_spawn: []
-max_depth: 0
-auto_approve: true
-repo: web
-system_prompt: |
-  You are a frontend developer working in a React app.
-  Implement the UI described in your input. Follow existing
-  component patterns. Output a summary of changes.
-```
-
 ## Using the App
 
 1. **Start Wyvern** — `npm run start`
-2. **Open a project** — Click `[Change Project]` and select your project directory
+2. **Open a project** — Click `[Change Project]` and select your project directory (or create a new one)
 3. **Check CLI tools** — Wyvern verifies all providers referenced by roles are installed
 4. **Enter a directive** — Type your goal in the chat panel and press Enter
 5. **Monitor progress** — The Pipeline Tree shows the agent hierarchy. Click an agent to see its logs, artifacts, and config in the Detail Panel
 6. **Respond to checkpoints** — When an agent asks a question, it appears in the chat. Approve, reject, or type a response
 7. **Review results** — When the pipeline completes, check the output artifacts in the Detail Panel
-
-## Git Worktrees
-
-When `git.use_worktrees` is enabled and a role has a `repo` set, each agent gets its own git worktree — an isolated copy of the repo on a dedicated branch. This means:
-
-- Agents can make changes without stepping on each other
-- Each agent's work is on a branch named `wyvern/{pipeline-id}/{role}-{agent-id}`
-- When an agent finishes, its branch is merged back to the pipeline's feature branch
-- Merge conflicts pause the pipeline for CEO review
-
-Disable worktrees by setting `git.use_worktrees: false` or by omitting the `git` section and not assigning `repo` to roles.
-
-## Cost Tracking
-
-Wyvern parses cost information from agent CLI output (e.g. the `$X.XX` line Claude prints). Costs accumulate across all agents in a pipeline.
-
-- **Warn threshold** — A warning appears in the chat when crossed
-- **Hard limit** — The pipeline aborts immediately when crossed
 
 ## Troubleshooting
 

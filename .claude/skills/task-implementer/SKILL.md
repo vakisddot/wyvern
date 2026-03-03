@@ -1,5 +1,5 @@
 ---
-description: Implements a specific step from the Wyvern build plan in docs/plan/
+description: (OUTDATED) Implements a specific step from the Wyvern build plan in docs/plan/. Only use if the user explicitly asks you to implement a step. Do not use this skill for any other purpose.
 user_invocable: true
 ---
 

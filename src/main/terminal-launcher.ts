@@ -8,19 +8,20 @@ export function openAgentTerminal(role: RoleDefinition, cwd: string, inputFilePa
   const winCwd = cwd.replace(/\//g, '\\');
   const winInput = inputFilePath.replace(/\//g, '\\');
 
+  const prompt = '"Read your full directive from ' + winInput + ' and follow all instructions within."';
+  const provider = role.model.provider;
+  const variant = role.model.variant;
+
   let cmd: string;
-  switch (role.model.provider) {
-    case 'claude': {
-      const extra = role.auto_approve ? ' --dangerously-skip-permissions' : '';
-      cmd = 'claude' + extra + ' "Read your full directive from ' + winInput + ' and follow all instructions within."';
+  switch (provider) {
+    case 'claude':
+      cmd = 'claude --model ' + provider + '-' + variant + ' ' + prompt;
       break;
-    }
     case 'gemini':
-      cmd = 'gemini "Read your full directive from ' + winInput + ' and follow all instructions within."';
+      cmd = 'gemini --model ' + variant + ' ' + prompt;
       break;
     default:
-      cmd = role.model.provider + ' "Read your full directive from ' + winInput + ' and follow all instructions within."';
-      break;
+      throw new Error('Unsupported provider: ' + provider); 
   }
 
   const batDir = path.join(os.tmpdir(), 'wyvern-launches');

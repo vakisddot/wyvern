@@ -42,6 +42,22 @@ const api: WyvernAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.OPEN_IN_EDITOR, filePath);
   },
 
+  saveConfig: (projectPath: string, content: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.SAVE_CONFIG, projectPath, content);
+  },
+
+  saveRole: (projectPath: string, slug: string, content: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.SAVE_ROLE, projectPath, slug, content);
+  },
+
+  createRole: (projectPath: string, slug: string, content: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CREATE_ROLE, projectPath, slug, content);
+  },
+
+  deleteRole: (projectPath: string, slug: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.DELETE_ROLE, projectPath, slug);
+  },
+
   onPipelineUpdate: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, state: Parameters<typeof cb>[0]) => cb(state);
     ipcRenderer.on(IPC_CHANNELS.PIPELINE_UPDATE, listener);

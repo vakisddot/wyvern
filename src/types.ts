@@ -67,6 +67,15 @@ export type AgentCommand =
   | { type: 'CHECKPOINT'; message: string }
   | { type: 'DONE'; output: string };
 
+// --- Config update result (returned by save/create/delete operations) ---
+
+export interface ConfigUpdateResult {
+  ok: boolean;
+  config?: WyvernConfig;
+  roles?: Record<string, RoleDefinition>;
+  error?: string;
+}
+
 // --- IPC channel names (used in preload + main) ---
 
 export const IPC_CHANNELS = {
@@ -81,6 +90,10 @@ export const IPC_CHANNELS = {
   CREATE_PROJECT: 'wyvern:create-project',
   CHECK_CLI_TOOLS: 'wyvern:check-cli-tools',
   OPEN_IN_EDITOR: 'wyvern:open-in-editor',
+  SAVE_CONFIG: 'wyvern:save-config',
+  SAVE_ROLE: 'wyvern:save-role',
+  CREATE_ROLE: 'wyvern:create-role',
+  DELETE_ROLE: 'wyvern:delete-role',
   // Main -> Renderer (push events)
   PIPELINE_UPDATE: 'wyvern:pipeline-update',
   CHECKPOINT_REQUEST: 'wyvern:checkpoint-request',
@@ -99,6 +112,10 @@ export interface WyvernAPI {
   createProject: (projectName: string) => Promise<{ config: WyvernConfig; roles: Record<string, RoleDefinition>; projectPath: string } | null>;
   checkCliTools: () => Promise<{ missing: string[] }>;
   openInEditor: (filePath: string) => Promise<string>;
+  saveConfig: (projectPath: string, content: string) => Promise<ConfigUpdateResult>;
+  saveRole: (projectPath: string, slug: string, content: string) => Promise<ConfigUpdateResult>;
+  createRole: (projectPath: string, slug: string, content: string) => Promise<ConfigUpdateResult>;
+  deleteRole: (projectPath: string, slug: string) => Promise<ConfigUpdateResult>;
   onPipelineUpdate: (cb: (state: PipelineState) => void) => () => void;
   onCheckpointRequest: (cb: (data: { pipelineId: string; agentId: string; message: string }) => void) => () => void;
 }

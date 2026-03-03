@@ -216,6 +216,7 @@ export function PipelineTree({ roles, style }: { roles: Record<string, RoleDefin
   const selectedRoleSlug = usePipelineStore((s) => s.selectedRoleSlug);
   const selectAgent = usePipelineStore((s) => s.selectAgent);
   const selectRole = usePipelineStore((s) => s.selectRole);
+  const setCreatingRole = usePipelineStore((s) => s.setCreatingRole);
   const [tab, setTab] = useState<LeftTab>('roles');
 
   return (
@@ -228,6 +229,12 @@ export function PipelineTree({ roles, style }: { roles: Record<string, RoleDefin
             onClick={() => setTab(t)}
           >[{t === 'pipeline' ? 'Pipeline' : 'Roles'}]</button>
         ))}
+        {tab === 'roles' && (
+          <button
+            className="text-xs text-gray-500 hover:text-cyan-400 transition-colors ml-auto"
+            onClick={() => setCreatingRole(true)}
+          >[+ Add]</button>
+        )}
       </div>
       <div className="flex-1 overflow-y-auto p-3">
         {tab === 'pipeline' ? (

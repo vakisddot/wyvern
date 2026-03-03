@@ -11,5 +11,5 @@ export default function App() {
     return <ProjectSelector onProjectLoaded={setProject} />;
   }
 
-  return <Workspace project={project} onChangeProject={() => setProject(null)} />;
+  return <Workspace project={project} onChangeProject={() => setProject(null)} onProjectUpdate={setProject} />;
 }

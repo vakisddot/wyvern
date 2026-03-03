@@ -1,0 +1,10 @@
+name: New Role
+description: Describe what this role does
+model:
+  provider: claude
+  variant: sonnet-4-5
+can_spawn: []
+max_depth: 0
+auto_approve: true
+system_prompt: |
+  You are a new role. Define your behavior here.

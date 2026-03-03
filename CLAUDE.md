@@ -1,17 +1,30 @@
-# Wyvern
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+## Wyvern
 
 AI Agent Orchestrator — Electron desktop app (TypeScript + React).
 
-Read `docs/WYVERN_PRODUCT_DESIGN.md` for the full product spec.
-Read `docs/plan/step-0-overview.md` for the build plan and file map.
+(OUTDATED) Read `docs/WYVERN_PRODUCT_DESIGN.md` for the full product spec.
+(OUTDATED) Read `docs/plan/step-0-overview.md` for the build plan and file map.
 
 ## Architecture
 
 - **Main process** (`src/main/`): Node.js — orchestrator, agent spawner, git manager, config loader, IPC handlers
 - **Preload** (`src/preload.ts`): contextBridge exposing `window.wyvern` API
-- **Renderer** (`src/renderer/`): React + Tailwind + Zustand — three-panel GUI
+- **Renderer** (`src/renderer/`): React + Tailwind + Zustand — three-panel GUI. Components organized into `screens/` (full-page views), `panels/` (workspace sections), and `shared/` (reusable pieces).
 
 Agents are stateless CLI processes (`claude`, `gemini`) spawned via `child_process.spawn`. They communicate through file artifacts in `.wyvern/pipelines/`. The orchestration loop is recursive — one pattern at every depth.
+
+## Development Commands
+
+- `npm run start` — Launch the Electron app in dev mode (hot reload)
+- `npm run lint` — Run ESLint across TypeScript files
+- `npm run package` — Package the app for distribution
+- `npm run make` — Build platform installers (Squirrel/DEB/RPM/ZIP)
+
+No test framework is configured. Verify changes with `npm run lint` and `npm run start`.
 
 ## Code Rules
 
@@ -23,15 +36,17 @@ Agents are stateless CLI processes (`claude`, `gemini`) spawned via `child_proce
 - State management: Zustand stores in `src/renderer/stores/`. Access stores via hooks in components, via `getState()` in non-React code (IPC listeners).
 - Styling: Tailwind utility classes. No CSS modules, no styled-components, no inline style objects unless dynamic.
 - File operations in main process use `fs` sync methods (simple, orchestrator is already async at the spawn level).
-- Git operations use `child_process.execSync` with explicit `cwd`.
+
 
 ## Conventions
 
-- Naming: files are `kebab-case.ts`. Types/interfaces are `PascalCase`. Functions/variables are `camelCase`.
+- Naming: files are `kebab-case.ts`, React components are `PascalCase.tsx`. Types/interfaces are `PascalCase`. Functions/variables are `camelCase`.
 - Imports: relative paths within `src/`. No path aliases.
 - No barrel files (`index.ts` re-exports). Import directly from the source file.
 - Keep functions small. If a function needs a comment explaining what a block does, extract that block into a named function.
-- No dead code. No commented-out code. No TODO comments — track work in `docs/plan/`.
+- No dead code. No commented-out code. No TODO comments.
+- Keep `README.md` in sync with breaking changes — config schema changes, removed/added features, new CLI requirements.
+- Keep `src/main/templates/` in sync when config or role schemas change — these are the scaffolding defaults for new projects.
 
 ## UI Design
 

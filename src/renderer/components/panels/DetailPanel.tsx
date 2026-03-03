@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store';
-import { AgentNode, RoleDefinition, WyvernConfig } from '../../../types';
+import { AgentNode, RoleDefinition, WyvernConfig, ConfigUpdateResult } from '../../../types';
 import { FilePath } from '../shared/FilePath';
+import { ProjectData } from '../screens/Workspace';
+import newRoleTemplate from '../../../main/templates/new-role.yaml';
 
 type Tab = 'artifacts' | 'config';
 
@@ -105,15 +107,156 @@ function renderValue(value: unknown): string {
   return '';
 }
 
-function RoleDetailView({ slug, role, filePath }: { slug: string; role: RoleDefinition; filePath: string }) {
+function YamlEditor({ content, saving, error, onSave, onCancel }: {
+  content: string;
+  saving: boolean;
+  error: string | null;
+  onSave: (content: string) => void;
+  onCancel: () => void;
+}) {
+  const [value, setValue] = useState(content);
+
+  return (
+    <div className="flex flex-col flex-1 overflow-hidden">
+      <textarea
+        className="flex-1 bg-gray-950 border border-gray-700 text-xs text-gray-300 p-2 resize-none focus:outline-none focus:border-gray-500 font-mono"
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        spellCheck={false}
+      />
+      {error && (
+        <p className="text-xs text-red-400 px-1 py-1 break-words">{error}</p>
+      )}
+      <div className="flex gap-3 pt-2">
+        <button
+          className="text-xs text-gray-300 hover:text-white transition-colors disabled:text-gray-600"
+          onClick={() => onSave(value)}
+          disabled={saving}
+        >{saving ? '[Saving...]' : '[Save]'}</button>
+        <button
+          className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+          onClick={onCancel}
+          disabled={saving}
+        >[Cancel]</button>
+      </div>
+    </div>
+  );
+}
+
+function InlineConfirm({ message, onConfirm, onCancel }: {
+  message: string;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-xs">
+      <span className="text-amber-400">{message}</span>
+      <button className="text-red-400 hover:text-red-300 transition-colors" onClick={onConfirm}>[Confirm]</button>
+      <button className="text-gray-500 hover:text-gray-300 transition-colors" onClick={onCancel}>[Cancel]</button>
+    </div>
+  );
+}
+
+function ReadOnlyFields({ entries }: { entries: [string, unknown][] }) {
+  return (
+    <>
+      {entries.map(([key, value]) => (
+        <div key={key} className="flex flex-col gap-1">
+          <span className="text-[10px] text-gray-500 uppercase tracking-wider">{formatLabel(key)}</span>
+          <span className="text-xs text-gray-300 whitespace-pre-wrap">{renderValue(value)}</span>
+        </div>
+      ))}
+    </>
+  );
+}
+
+function RoleDetailView({ slug, role, filePath, projectPath, onProjectUpdate }: {
+  slug: string;
+  role: RoleDefinition;
+  filePath: string;
+  projectPath: string;
+  onProjectUpdate: (data: ProjectData) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [yamlContent, setYamlContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const selectRole = usePipelineStore((s) => s.selectRole);
+
+  useEffect(() => {
+    setEditing(false);
+    setError(null);
+    setConfirmingDelete(false);
+  }, [slug]);
+
+  function handleEdit() {
+    window.wyvern.getArtifact(filePath).then((content) => {
+      setYamlContent(content);
+      setEditing(true);
+      setError(null);
+    }).catch(() => {
+      setError('Failed to read file');
+    });
+  }
+
+  function handleSave(content: string) {
+    setSaving(true);
+    setError(null);
+    window.wyvern.saveRole(projectPath, slug, content).then((result: ConfigUpdateResult) => {
+      setSaving(false);
+      if (result.ok) {
+        setEditing(false);
+        onProjectUpdate({ projectPath, config: result.config as WyvernConfig, roles: result.roles as Record<string, RoleDefinition> });
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  function handleDelete() {
+    setSaving(true);
+    window.wyvern.deleteRole(projectPath, slug).then((result: ConfigUpdateResult) => {
+      setSaving(false);
+      if (result.ok) {
+        selectRole(null);
+        onProjectUpdate({ projectPath, config: result.config as WyvernConfig, roles: result.roles as Record<string, RoleDefinition> });
+      } else {
+        setError(result.error);
+        setConfirmingDelete(false);
+      }
+    });
+  }
+
   const entries = Object.entries(role).filter(([, value]) => {
     if (value === undefined || value === null) return false;
     if (Array.isArray(value) && value.length === 0) return false;
     return true;
   });
 
+  if (editing) {
+    return (
+      <YamlEditor
+        content={yamlContent}
+        saving={saving}
+        error={error}
+        onSave={handleSave}
+        onCancel={() => { setEditing(false); setError(null); }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <button className="text-xs text-gray-500 hover:text-cyan-400 transition-colors" onClick={handleEdit}>[Edit]</button>
+        {confirmingDelete ? (
+          <InlineConfirm message={`Delete '${slug}'?`} onConfirm={handleDelete} onCancel={() => setConfirmingDelete(false)} />
+        ) : (
+          <button className="text-xs text-gray-500 hover:text-red-400 transition-colors" onClick={() => setConfirmingDelete(true)}>[Delete]</button>
+        )}
+      </div>
+      {error && <p className="text-xs text-red-400 break-words">{error}</p>}
       <div className="flex flex-col gap-1">
         <span className="text-[10px] text-gray-500 uppercase tracking-wider">source</span>
         <FilePath path={filePath} />
@@ -122,12 +265,7 @@ function RoleDetailView({ slug, role, filePath }: { slug: string; role: RoleDefi
         <span className="text-[10px] text-gray-500 uppercase tracking-wider">slug</span>
         <span className="text-xs text-gray-400">{slug}</span>
       </div>
-      {entries.map(([key, value]) => (
-        <div key={key} className="flex flex-col gap-1">
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider">{formatLabel(key)}</span>
-          <span className="text-xs text-gray-300 whitespace-pre-wrap">{renderValue(value)}</span>
-        </div>
-      ))}
+      <ReadOnlyFields entries={entries} />
     </div>
   );
 }
@@ -158,45 +296,168 @@ function AgentDetailView({ agent }: { agent: AgentNode }) {
   );
 }
 
-function ProjectDetailView({ config, filePath }: { config: WyvernConfig; filePath: string }) {
+function ProjectDetailView({ config, filePath, projectPath, onProjectUpdate }: {
+  config: WyvernConfig;
+  filePath: string;
+  projectPath: string;
+  onProjectUpdate: (data: ProjectData) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [yamlContent, setYamlContent] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function handleEdit() {
+    window.wyvern.getArtifact(filePath).then((content) => {
+      setYamlContent(content);
+      setEditing(true);
+      setError(null);
+    }).catch(() => {
+      setError('Failed to read file');
+    });
+  }
+
+  function handleSave(content: string) {
+    setSaving(true);
+    setError(null);
+    window.wyvern.saveConfig(projectPath, content).then((result: ConfigUpdateResult) => {
+      setSaving(false);
+      if (result.ok) {
+        setEditing(false);
+        onProjectUpdate({ projectPath, config: result.config as WyvernConfig, roles: result.roles as Record<string, RoleDefinition> });
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
   const entries = Object.entries(config).filter(([, value]) => {
     if (value === undefined || value === null) return false;
     return true;
   });
 
+  if (editing) {
+    return (
+      <YamlEditor
+        content={yamlContent}
+        saving={saving}
+        error={error}
+        onSave={handleSave}
+        onCancel={() => { setEditing(false); setError(null); }}
+      />
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-3">
+        <button className="text-xs text-gray-500 hover:text-cyan-400 transition-colors" onClick={handleEdit}>[Edit]</button>
+      </div>
+      {error && <p className="text-xs text-red-400 break-words">{error}</p>}
       <div className="flex flex-col gap-1">
         <span className="text-[10px] text-gray-500 uppercase tracking-wider">source</span>
         <FilePath path={filePath} />
       </div>
-      {entries.map(([key, value]) => (
-        <div key={key} className="flex flex-col gap-1">
-          <span className="text-[10px] text-gray-500 uppercase tracking-wider">{formatLabel(key)}</span>
-          <span className="text-xs text-gray-300 whitespace-pre-wrap">{renderValue(value)}</span>
-        </div>
-      ))}
+      <ReadOnlyFields entries={entries} />
     </div>
   );
 }
 
-export function DetailPanel({ roles, config, projectPath, style }: { roles: Record<string, RoleDefinition>; config: WyvernConfig; projectPath: string; style?: React.CSSProperties }) {
+function CreateRoleView({ projectPath, onProjectUpdate }: {
+  projectPath: string;
+  onProjectUpdate: (data: ProjectData) => void;
+}) {
+  const [slug, setSlug] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const setCreatingRole = usePipelineStore((s) => s.setCreatingRole);
+  const selectRole = usePipelineStore((s) => s.selectRole);
+
+  function handleCreate(content: string) {
+    const trimmedSlug = slug.trim().toLowerCase().replace(/[^a-z0-9-]/g, '-');
+    if (!trimmedSlug) {
+      setError('Slug is required');
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    window.wyvern.createRole(projectPath, trimmedSlug, content).then((result: ConfigUpdateResult) => {
+      setSaving(false);
+      if (result.ok) {
+        setCreatingRole(false);
+        onProjectUpdate({ projectPath, config: result.config as WyvernConfig, roles: result.roles as Record<string, RoleDefinition> });
+        selectRole(trimmedSlug);
+      } else {
+        setError(result.error);
+      }
+    });
+  }
+
+  return (
+    <div className="flex flex-col gap-2 flex-1 overflow-hidden">
+      <div className="flex flex-col gap-1">
+        <span className="text-[10px] text-gray-500 uppercase tracking-wider">slug (filename)</span>
+        <input
+          type="text"
+          className="bg-gray-800 border border-gray-600 text-gray-100 text-sm px-2 py-1 focus:border-cyan-400 focus:outline-none"
+          placeholder="my-role"
+          value={slug}
+          onChange={(e) => setSlug(e.target.value)}
+        />
+      </div>
+      <YamlEditor
+        content={newRoleTemplate}
+        saving={saving}
+        error={error}
+        onSave={handleCreate}
+        onCancel={() => setCreatingRole(false)}
+      />
+    </div>
+  );
+}
+
+interface DetailPanelProps {
+  roles: Record<string, RoleDefinition>;
+  config: WyvernConfig;
+  projectPath: string;
+  onProjectUpdate: (data: ProjectData) => void;
+  style?: React.CSSProperties;
+}
+
+export function DetailPanel({ roles, config, projectPath, onProjectUpdate, style }: DetailPanelProps) {
   const agent = usePipelineStore((s) => s.getSelectedAgent());
   const selectedRoleSlug = usePipelineStore((s) => s.selectedRoleSlug);
+  const creatingRole = usePipelineStore((s) => s.creatingRole);
   const selectedRole = selectedRoleSlug ? roles[selectedRoleSlug] ?? null : null;
 
   return (
     <div className="bg-gray-900 shrink-0 flex flex-col overflow-hidden" style={style}>
       {agent ? (
         <AgentDetailView agent={agent} />
+      ) : creatingRole ? (
+        <>
+          <div className="p-3 border-b border-gray-700">
+            <h2 className="text-sm font-semibold text-gray-100">Detail Panel</h2>
+            <p className="text-xs text-gray-400 mt-0.5">New Role</p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col">
+            <CreateRoleView projectPath={projectPath} onProjectUpdate={onProjectUpdate} />
+          </div>
+        </>
       ) : selectedRole && selectedRoleSlug ? (
         <>
           <div className="p-3 border-b border-gray-700">
             <h2 className="text-sm font-semibold text-gray-100">Detail Panel</h2>
             <p className="text-xs text-gray-400 mt-0.5">&apos;{selectedRole.name}&apos;</p>
           </div>
-          <div className="flex-1 overflow-y-auto p-3">
-            <RoleDetailView slug={selectedRoleSlug} role={selectedRole} filePath={`${projectPath}/.wyvern/roles/${selectedRoleSlug}.yaml`} />
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col">
+            <RoleDetailView
+              slug={selectedRoleSlug}
+              role={selectedRole}
+              filePath={`${projectPath}/.wyvern/roles/${selectedRoleSlug}.yaml`}
+              projectPath={projectPath}
+              onProjectUpdate={onProjectUpdate}
+            />
           </div>
           <div className="px-3 py-2 border-t border-gray-700 text-xs text-gray-500 flex justify-between">
             <span>Model: {selectedRole.model.provider}/{selectedRole.model.variant}</span>
@@ -209,8 +470,13 @@ export function DetailPanel({ roles, config, projectPath, style }: { roles: Reco
             <h2 className="text-sm font-semibold text-gray-100">Detail Panel</h2>
             <p className="text-xs text-gray-400 mt-0.5">&apos;{config.project.name}&apos;</p>
           </div>
-          <div className="flex-1 overflow-y-auto p-3">
-            <ProjectDetailView config={config} filePath={`${projectPath}/wyvern.yaml`} />
+          <div className="flex-1 overflow-y-auto p-3 flex flex-col">
+            <ProjectDetailView
+              config={config}
+              filePath={`${projectPath}/wyvern.yaml`}
+              projectPath={projectPath}
+              onProjectUpdate={onProjectUpdate}
+            />
           </div>
         </>
       )}

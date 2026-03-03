@@ -19,7 +19,7 @@ const RIGHT_DEFAULT = 350;
 const MIN_PANEL = 180;
 const MIN_CENTER = 300;
 
-export function Workspace({ project, onChangeProject }: { project: ProjectData; onChangeProject: () => void }) {
+export function Workspace({ project, onChangeProject, onProjectUpdate }: { project: ProjectData; onChangeProject: () => void; onProjectUpdate: (data: ProjectData) => void }) {
   const pipeline = usePipelineStore((s) => s.getActivePipeline());
   const [leftWidth, setLeftWidth] = useState(LEFT_DEFAULT);
   const [rightWidth, setRightWidth] = useState(RIGHT_DEFAULT);
@@ -74,7 +74,7 @@ export function Workspace({ project, onChangeProject }: { project: ProjectData; 
         <ResizeHandle onDrag={onLeftDrag} />
         <ChatPanel projectPath={project.projectPath} />
         <ResizeHandle onDrag={onRightDrag} />
-        <DetailPanel roles={project.roles} config={project.config} projectPath={project.projectPath} style={{ width: rightWidth }} />
+        <DetailPanel roles={project.roles} config={project.config} projectPath={project.projectPath} onProjectUpdate={onProjectUpdate} style={{ width: rightWidth }} />
       </div>
     </div>
   );

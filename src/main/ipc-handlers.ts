@@ -1,10 +1,12 @@
 import { BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import fs from 'fs';
-import { IPC_CHANNELS, WyvernConfig, RoleDefinition } from '../types';
+import path from 'path';
+import { IPC_CHANNELS, WyvernConfig, RoleDefinition, ConfigUpdateResult } from '../types';
 import { Orchestrator } from './orchestrator';
 import { PipelineManager } from './pipeline-manager';
 import { openProject, checkCliTools } from './project-manager';
 import { scaffoldProject } from './project-scaffold';
+import { loadConfig, loadRoles } from './config-loader';
 
 export interface ProjectContext {
   orchestrator: Orchestrator | null;
@@ -99,6 +101,71 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC_CHANNELS.OPEN_IN_EDITOR, async (_event, filePath: string) => {
     return shell.openPath(filePath);
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SAVE_CONFIG, async (_event, projectPath: string, content: string): Promise<ConfigUpdateResult> => {
+    try {
+      const configPath = path.join(projectPath, 'wyvern.yaml');
+      fs.writeFileSync(configPath, content, 'utf-8');
+      const config = loadConfig(projectPath);
+      const roles = loadRoles(projectPath);
+      ctx.config = config;
+      ctx.roles = roles;
+      return { ok: true, config, roles };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.SAVE_ROLE, async (_event, projectPath: string, slug: string, content: string): Promise<ConfigUpdateResult> => {
+    try {
+      const filePath = path.join(projectPath, '.wyvern', 'roles', `${slug}.yaml`);
+      if (!fs.existsSync(filePath)) {
+        return { ok: false, error: `Role file not found: ${slug}.yaml` };
+      }
+      fs.writeFileSync(filePath, content, 'utf-8');
+      const config = loadConfig(projectPath);
+      const roles = loadRoles(projectPath);
+      ctx.config = config;
+      ctx.roles = roles;
+      return { ok: true, config, roles };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CREATE_ROLE, async (_event, projectPath: string, slug: string, content: string): Promise<ConfigUpdateResult> => {
+    try {
+      const filePath = path.join(projectPath, '.wyvern', 'roles', `${slug}.yaml`);
+      if (fs.existsSync(filePath)) {
+        return { ok: false, error: `Role "${slug}" already exists` };
+      }
+      fs.writeFileSync(filePath, content, 'utf-8');
+      const config = loadConfig(projectPath);
+      const roles = loadRoles(projectPath);
+      ctx.config = config;
+      ctx.roles = roles;
+      return { ok: true, config, roles };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
+  });
+
+  ipcMain.handle(IPC_CHANNELS.DELETE_ROLE, async (_event, projectPath: string, slug: string): Promise<ConfigUpdateResult> => {
+    try {
+      const filePath = path.join(projectPath, '.wyvern', 'roles', `${slug}.yaml`);
+      if (!fs.existsSync(filePath)) {
+        return { ok: false, error: `Role file not found: ${slug}.yaml` };
+      }
+      fs.unlinkSync(filePath);
+      const config = loadConfig(projectPath);
+      const roles = loadRoles(projectPath);
+      ctx.config = config;
+      ctx.roles = roles;
+      return { ok: true, config, roles };
+    } catch (err) {
+      return { ok: false, error: (err as Error).message };
+    }
   });
 
   ipcMain.on(IPC_CHANNELS.APPROVE_CHECKPOINT, (_event, _pipelineId: string, agentId: string, response: string) => {
