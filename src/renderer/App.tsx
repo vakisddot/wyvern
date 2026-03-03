@@ -109,7 +109,10 @@ export default function App() {
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700 bg-gray-900 shrink-0">
         <div className="flex items-center gap-4">
           <span className="text-sm font-semibold text-gray-100">{project.config.project.name}</span>
-          <span className="text-xs text-gray-500">[{statusText}]</span>
+          <button
+            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
+            onClick={() => usePipelineStore.getState().selectAgent(null)}
+          >[Details]</button>
         </div>
         <button
           className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
@@ -126,7 +129,7 @@ export default function App() {
         <ResizeHandle onDrag={onLeftDrag} />
         <ChatPanel projectPath={project.projectPath} />
         <ResizeHandle onDrag={onRightDrag} />
-        <DetailPanel style={{ width: rightWidth }} />
+        <DetailPanel roles={project.roles} config={project.config} projectPath={project.projectPath} style={{ width: rightWidth }} />
       </div>
     </div>
   );

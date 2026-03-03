@@ -14,6 +14,34 @@ export function ProjectSelector({ onProjectLoaded }: ProjectSelectorProps) {
   const [error, setError] = useState<string | null>(null);
   const [cliWarnings, setCliWarnings] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [showNameInput, setShowNameInput] = useState(false);
+  const [projectName, setProjectName] = useState('');
+
+  async function handleCreate() {
+    if (!projectName.trim()) return;
+    setError(null);
+    setCliWarnings([]);
+    setLoading(true);
+
+    try {
+      const result = await window.wyvern.createProject(projectName.trim());
+      if (!result) {
+        setLoading(false);
+        return;
+      }
+
+      const { missing } = await window.wyvern.checkCliTools();
+      if (missing.length > 0) {
+        setCliWarnings(missing);
+      }
+
+      onProjectLoaded(result);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg);
+      setLoading(false);
+    }
+  }
 
   async function handleOpen() {
     setError(null);
@@ -54,13 +82,58 @@ export function ProjectSelector({ onProjectLoaded }: ProjectSelectorProps) {
           <p className="text-xs text-gray-400">AI Agent Orchestrator</p>
         </div>
 
-        <button
-          className="relative text-sm text-gray-300 hover:text-white transition-colors disabled:text-gray-600"
-          onClick={handleOpen}
-          disabled={loading}
-        >
-          {loading ? '[Opening...]' : '[Open Project]'}
-        </button>
+        <div className="relative flex flex-col items-center gap-3">
+          <button
+            className="text-sm text-gray-300 hover:text-white transition-colors disabled:text-gray-600"
+            onClick={handleOpen}
+            disabled={loading}
+          >
+            {loading ? '[Opening...]' : '[Open Project]'}
+          </button>
+
+          {!showNameInput ? (
+            <button
+              className="text-sm text-gray-300 hover:text-white transition-colors disabled:text-gray-600"
+              onClick={() => setShowNameInput(true)}
+              disabled={loading}
+            >
+              [Create Project]
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <input
+                type="text"
+                className="bg-gray-800 border border-gray-600 text-gray-100 text-sm px-2 py-1 focus:border-cyan-400 focus:outline-none"
+                placeholder="Project name..."
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') handleCreate();
+                  if (e.key === 'Escape') {
+                    setShowNameInput(false);
+                    setProjectName('');
+                  }
+                }}
+                autoFocus
+                disabled={loading}
+              />
+              <button
+                className="text-sm text-gray-300 hover:text-white transition-colors disabled:text-gray-600"
+                onClick={handleCreate}
+                disabled={loading || !projectName.trim()}
+              >
+                {loading ? '[Creating...]' : '[Confirm]'}
+              </button>
+              <button
+                className="text-sm text-gray-500 hover:text-gray-300 transition-colors"
+                onClick={() => { setShowNameInput(false); setProjectName(''); }}
+                disabled={loading}
+              >
+                [Cancel]
+              </button>
+            </div>
+          )}
+        </div>
 
         {error && (
           <p className="relative text-xs text-red-400 text-center">{error}</p>
@@ -77,7 +150,7 @@ export function ProjectSelector({ onProjectLoaded }: ProjectSelectorProps) {
         )}
 
         <p className="relative text-xs text-gray-600 text-center max-w-[320px]">
-          Select a directory containing wyvern.yaml and .wyvern/roles/ to get started.
+          Open a directory with wyvern.yaml, or create a new project from template.
         </p>
       </div>
     </div>

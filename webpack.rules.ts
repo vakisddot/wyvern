@@ -32,4 +32,8 @@ export const rules: Required<ModuleOptions>['rules'] = [
     test: /\.png$/,
     type: 'asset/inline',
   },
+  {
+    test: /\.yaml$/,
+    type: 'asset/source',
+  },
 ];

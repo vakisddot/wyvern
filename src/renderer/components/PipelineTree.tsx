@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { usePipelineStore } from '../stores/pipeline-store';
 import { AgentNode, AgentStatus, RoleDefinition } from '../../types';
 import claudeLogo from '../assets/claude-color.png';
@@ -22,37 +23,74 @@ function statusLabel(status: AgentStatus): string {
   return status === 'waiting_ceo' ? 'WAITING CEO' : status.toUpperCase();
 }
 
-function HexNode({ agent, role, isSelected, onClick }: {
+// --- Shared hex row used by both pipeline agents and role roster ---
+
+function HexRow({ letter, strokeColor, glowStyle, logo, name, modelLabel, badge, isSelected, onClick }: {
+  letter: string;
+  strokeColor: string;
+  glowStyle: string;
+  logo?: string;
+  name: string;
+  modelLabel: string;
+  badge?: { text: string; className: string };
+  isSelected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <div className="flex items-center gap-3 cursor-pointer group" onClick={onClick}>
+      <svg width="40" height="40" viewBox="0 0 40 40" className="shrink-0" style={{ filter: `drop-shadow(${glowStyle})` }}>
+        <polygon
+          points={HEX_POINTS}
+          fill="#1f2937"
+          stroke={strokeColor}
+          strokeWidth={isSelected ? 3 : 2}
+        />
+        <text x="20" y="24" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">{letter}</text>
+      </svg>
+      <div className="flex flex-col">
+        <span className="flex items-center gap-1.5 text-gray-100 text-xs group-hover:text-white">
+          {logo && <img src={logo} alt="" className="w-3.5 h-3.5" />}
+          {name}
+        </span>
+        <span className="text-[10px] text-gray-500">{modelLabel}</span>
+        {badge && <span className={`text-xs ${badge.className}`}>[{badge.text}]</span>}
+      </div>
+    </div>
+  );
+}
+
+function formatRoleName(slug: string): string {
+  return slug.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+}
+
+function modelLabel(role: RoleDefinition): string {
+  return `${role.model.provider}/${role.model.variant}`;
+}
+
+// --- Pipeline agent nodes ---
+
+function AgentHexNode({ agent, role, isSelected, onClick }: {
   agent: AgentNode;
   role: RoleDefinition | undefined;
   isSelected: boolean;
   onClick: () => void;
 }) {
   const colors = STATUS_COLORS[agent.status];
-  const roleName = agent.role.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
+  const name = role ? role.name : formatRoleName(agent.role);
   const logo = role ? PROVIDER_LOGOS[role.model.provider] : undefined;
-  const modelName = role ? role.model.variant : undefined;
 
   return (
-    <div className="flex items-center gap-3 cursor-pointer group" onClick={onClick}>
-      <svg width="40" height="40" viewBox="0 0 40 40" className="shrink-0" style={{ filter: `drop-shadow(${colors.glow})` }}>
-        <polygon
-          points={HEX_POINTS}
-          fill="#1f2937"
-          stroke={colors.stroke}
-          strokeWidth={isSelected ? 3 : 2}
-        />
-        <text x="20" y="24" textAnchor="middle" fill="white" fontSize="12" fontWeight="600">{roleName[0]}</text>
-      </svg>
-      <div className="flex flex-col">
-        <span className="flex items-center gap-1.5 text-gray-100 text-xs group-hover:text-white">
-          {logo && <img src={logo} alt="" className="w-3.5 h-3.5" />}
-          {roleName}
-        </span>
-        {modelName && <span className="text-[10px] text-gray-500">{modelName}</span>}
-        <span className={`text-xs ${colors.text}`}>[{statusLabel(agent.status)}]</span>
-      </div>
-    </div>
+    <HexRow
+      letter={name[0]}
+      strokeColor={colors.stroke}
+      glowStyle={colors.glow}
+      logo={logo}
+      name={name}
+      modelLabel={role ? modelLabel(role) : agent.role}
+      badge={{ text: statusLabel(agent.status), className: colors.text }}
+      isSelected={isSelected}
+      onClick={onClick}
+    />
   );
 }
 
@@ -75,7 +113,7 @@ function AgentTreeNode({ agentId, agents, roles, depth, selectedAgentId, onSelec
         {depth > 0 && (
           <div className="ml-[19px] h-4 border-l border-gray-600" />
         )}
-        <HexNode
+        <AgentHexNode
           agent={agent}
           role={roles[agent.role]}
           isSelected={selectedAgentId === agentId}
@@ -97,28 +135,6 @@ function AgentTreeNode({ agentId, agents, roles, depth, selectedAgentId, onSelec
           ))}
         </div>
       )}
-    </div>
-  );
-}
-
-export function PipelineTree({ roles, style }: { roles: Record<string, RoleDefinition>; style?: React.CSSProperties }) {
-  const pipeline = usePipelineStore((s) => s.getActivePipeline());
-  const selectedAgentId = usePipelineStore((s) => s.selectedAgentId);
-  const selectAgent = usePipelineStore((s) => s.selectAgent);
-
-  return (
-    <div className="bg-gray-900 shrink-0 flex flex-col overflow-hidden" style={style}>
-      <div className="p-3 border-b border-gray-700">
-        <h2 className="text-sm font-semibold text-gray-100">Pipeline Tree</h2>
-        <p className="text-xs text-gray-400 mt-0.5">Active agent hierarchy</p>
-      </div>
-      <div className="flex-1 overflow-y-auto p-3">
-        {!pipeline ? (
-          <p className="text-xs text-gray-500 text-center mt-8">No active pipeline</p>
-        ) : (
-          <AgentTreeRoot pipeline={pipeline} roles={roles} selectedAgentId={selectedAgentId} onSelect={selectAgent} />
-        )}
-      </div>
     </div>
   );
 }
@@ -145,5 +161,85 @@ function AgentTreeRoot({ pipeline, roles, selectedAgentId, onSelect }: {
       selectedAgentId={selectedAgentId}
       onSelect={onSelect}
     />
+  );
+}
+
+// --- Role roster ---
+
+function RoleRoster({ roles, selectedSlug, onSelect }: {
+  roles: Record<string, RoleDefinition>;
+  selectedSlug: string | null;
+  onSelect: (slug: string) => void;
+}) {
+  const slugs = Object.keys(roles);
+  if (slugs.length === 0) {
+    return <p className="text-xs text-gray-500 text-center mt-8">No roles configured</p>;
+  }
+
+  const sorted = [...slugs].sort((a, b) => {
+    if (roles[a].entry_point) return -1;
+    if (roles[b].entry_point) return 1;
+    return 0;
+  });
+
+  return (
+    <div className="flex flex-col gap-2">
+      {sorted.map((slug) => {
+        const role = roles[slug];
+        const isEntry = role.entry_point === true;
+        return (
+          <HexRow
+            key={slug}
+            letter={role.name.charAt(0).toUpperCase()}
+            strokeColor={isEntry ? '#22d3ee' : '#4b5563'}
+            glowStyle={isEntry ? '0 0 8px rgba(34,211,238,0.3)' : 'none'}
+            logo={PROVIDER_LOGOS[role.model.provider]}
+            name={role.name}
+            modelLabel={modelLabel(role)}
+            badge={isEntry ? { text: 'ENTRY', className: 'text-cyan-400' } : undefined}
+            isSelected={selectedSlug === slug}
+            onClick={() => onSelect(slug)}
+          />
+        );
+      })}
+    </div>
+  );
+}
+
+// --- Main exported component ---
+
+type LeftTab = 'pipeline' | 'roles';
+
+export function PipelineTree({ roles, style }: { roles: Record<string, RoleDefinition>; style?: React.CSSProperties }) {
+  const pipeline = usePipelineStore((s) => s.getActivePipeline());
+  const selectedAgentId = usePipelineStore((s) => s.selectedAgentId);
+  const selectedRoleSlug = usePipelineStore((s) => s.selectedRoleSlug);
+  const selectAgent = usePipelineStore((s) => s.selectAgent);
+  const selectRole = usePipelineStore((s) => s.selectRole);
+  const [tab, setTab] = useState<LeftTab>('roles');
+
+  return (
+    <div className="bg-gray-900 shrink-0 flex flex-col overflow-hidden" style={style}>
+      <div className="flex items-center gap-3 px-3 pt-3 pb-2 border-b border-gray-700">
+        {(['pipeline', 'roles'] as const).map((t) => (
+          <button
+            key={t}
+            className={`text-xs transition-colors ${tab === t ? 'text-gray-100' : 'text-gray-500 hover:text-gray-300'}`}
+            onClick={() => setTab(t)}
+          >[{t === 'pipeline' ? 'Pipeline' : 'Roles'}]</button>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto p-3">
+        {tab === 'pipeline' ? (
+          pipeline ? (
+            <AgentTreeRoot pipeline={pipeline} roles={roles} selectedAgentId={selectedAgentId} onSelect={selectAgent} />
+          ) : (
+            <p className="text-xs text-gray-500 text-center mt-8">No active pipeline</p>
+          )
+        ) : (
+          <RoleRoster roles={roles} selectedSlug={selectedRoleSlug} onSelect={selectRole} />
+        )}
+      </div>
+    </div>
   );
 }

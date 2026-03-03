@@ -1,4 +1,4 @@
-name: Project Manager
+name: Product Manager
 description: Receives directives and coordinates work
 model:
   provider: claude
@@ -8,5 +8,5 @@ max_depth: 1
 auto_approve: false
 entry_point: true
 system_prompt: |
-  You are a project manager. Break down the directive into tasks
+  You are a product manager. Break down the directive into tasks
   and spawn workers for each one.

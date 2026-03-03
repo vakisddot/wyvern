@@ -1,10 +1,11 @@
-import { BrowserWindow, ipcMain, dialog } from 'electron';
+import { BrowserWindow, ipcMain, dialog, shell } from 'electron';
 import fs from 'fs';
 import { IPC_CHANNELS, WyvernConfig, RoleDefinition } from '../types';
 import { Orchestrator } from './orchestrator';
 import { PipelineManager } from './pipeline-manager';
 import { GitManager } from './git-manager';
 import { openProject, checkCliTools } from './project-manager';
+import { scaffoldProject } from './project-scaffold';
 
 export interface ProjectContext {
   orchestrator: Orchestrator | null;
@@ -27,6 +28,32 @@ export function registerIpcHandlers(
     if (result.canceled || result.filePaths.length === 0) return null;
 
     const selectedPath = result.filePaths[0];
+    const { config, roles } = openProject(selectedPath);
+
+    ctx.projectPath = selectedPath;
+    ctx.config = config;
+    ctx.roles = roles;
+
+    const gitManager = new GitManager();
+    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, pipelineManager, gitManager);
+    forwardOrchestratorEvents(mainWindow, ctx.orchestrator);
+
+    mainWindow.setTitle(`Wyvern \u2014 ${config.project.name}`);
+
+    return { config, roles, projectPath: selectedPath };
+  });
+
+  ipcMain.handle(IPC_CHANNELS.CREATE_PROJECT, async (_event, projectName: string) => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      properties: ['openDirectory'],
+      title: 'Select Directory for New Wyvern Project',
+    });
+
+    if (result.canceled || result.filePaths.length === 0) return null;
+
+    const selectedPath = result.filePaths[0];
+    scaffoldProject(selectedPath, projectName);
+
     const { config, roles } = openProject(selectedPath);
 
     ctx.projectPath = selectedPath;
@@ -70,6 +97,10 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC_CHANNELS.GET_ARTIFACT, async (_event, filePath: string) => {
     return fs.readFileSync(filePath, 'utf-8');
+  });
+
+  ipcMain.handle(IPC_CHANNELS.OPEN_IN_EDITOR, async (_event, filePath: string) => {
+    return shell.openPath(filePath);
   });
 
   ipcMain.on(IPC_CHANNELS.APPROVE_CHECKPOINT, (_event, _pipelineId: string, agentId: string, response: string) => {

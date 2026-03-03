@@ -47,10 +47,10 @@ Quick summary: dark theme, JetBrains Mono everywhere, CLI/ImGui aesthetic with `
 - ESLint enforces named imports from packages that support them (e.g., `import { load } from 'js-yaml'` not `import yaml from 'js-yaml'`).
 - **Assets (images, icons)**: stored in `src/renderer/assets/`. Webpack handles them via `asset/inline` (base64 data URIs). Import with `import logo from '../assets/foo.png'` and use as `<img src={logo} />`. New asset types need a matching rule in `webpack.rules.ts` and a type declaration in `src/assets.d.ts`.
 - Provider names in code must match the YAML config values (`claude`, `gemini`) — not company names (`anthropic`, `google`).
+- **Templates & default prompts**: stored as `.yaml` files in `src/main/templates/`. Webpack loads them via `asset/source` (raw strings). Never hardcode YAML templates or system prompts as string literals in TypeScript — import from template files instead. Use `{{PLACEHOLDER}}` for values that need interpolation at runtime.
 
 ## Don'ts
 
-- Don't add features not in the design doc or current step's plan.
 - Don't create wrapper utilities for one-time operations.
 - Don't add error handling for impossible states.
 - Don't introduce abstractions "for the future."

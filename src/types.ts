@@ -82,7 +82,9 @@ export const IPC_CHANNELS = {
   GET_PIPELINE_STATE: 'wyvern:get-pipeline-state',
   GET_ARTIFACT: 'wyvern:get-artifact',
   OPEN_PROJECT: 'wyvern:open-project',
+  CREATE_PROJECT: 'wyvern:create-project',
   CHECK_CLI_TOOLS: 'wyvern:check-cli-tools',
+  OPEN_IN_EDITOR: 'wyvern:open-in-editor',
   // Main -> Renderer (push events)
   PIPELINE_UPDATE: 'wyvern:pipeline-update',
   AGENT_OUTPUT: 'wyvern:agent-output',
@@ -99,7 +101,9 @@ export interface WyvernAPI {
   getPipelineState: (id: string) => Promise<PipelineState>;
   getArtifact: (filePath: string) => Promise<string>;
   openProject: () => Promise<{ config: WyvernConfig; roles: Record<string, RoleDefinition>; projectPath: string } | null>;
+  createProject: (projectName: string) => Promise<{ config: WyvernConfig; roles: Record<string, RoleDefinition>; projectPath: string } | null>;
   checkCliTools: () => Promise<{ missing: string[] }>;
+  openInEditor: (filePath: string) => Promise<string>;
   onPipelineUpdate: (cb: (state: PipelineState) => void) => () => void;
   onAgentOutput: (cb: (data: { pipelineId: string; agentId: string; chunk: string }) => void) => () => void;
   onCheckpointRequest: (cb: (data: { pipelineId: string; agentId: string; message: string }) => void) => () => void;

@@ -30,8 +30,16 @@ const api: WyvernAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.OPEN_PROJECT);
   },
 
+  createProject: (projectName: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.CREATE_PROJECT, projectName);
+  },
+
   checkCliTools: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.CHECK_CLI_TOOLS);
+  },
+
+  openInEditor: (filePath: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.OPEN_IN_EDITOR, filePath);
   },
 
   onPipelineUpdate: (cb) => {

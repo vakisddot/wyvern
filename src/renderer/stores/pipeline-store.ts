@@ -5,9 +5,11 @@ interface PipelineStore {
   pipelines: PipelineState[];
   activePipelineId: string | null;
   selectedAgentId: string | null;
+  selectedRoleSlug: string | null;
 
   setActivePipeline: (id: string) => void;
   selectAgent: (id: string | null) => void;
+  selectRole: (slug: string | null) => void;
   updatePipeline: (state: PipelineState) => void;
   addPipeline: (state: PipelineState) => void;
   setPipelines: (pipelines: PipelineState[]) => void;
@@ -20,10 +22,13 @@ export const usePipelineStore = create<PipelineStore>((set, get) => ({
   pipelines: [],
   activePipelineId: null,
   selectedAgentId: null,
+  selectedRoleSlug: null,
 
   setActivePipeline: (id) => set({ activePipelineId: id }),
 
-  selectAgent: (id) => set({ selectedAgentId: id }),
+  selectAgent: (id) => set({ selectedAgentId: id, selectedRoleSlug: null }),
+
+  selectRole: (slug) => set({ selectedRoleSlug: slug, selectedAgentId: null }),
 
   updatePipeline: (state) => set((prev) => {
     const idx = prev.pipelines.findIndex((p) => p.id === state.id);
