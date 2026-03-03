@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { usePipelineStore } from '../stores/pipeline-store';
-import { AgentNode, AgentStatus, RoleDefinition } from '../../types';
-import claudeLogo from '../assets/claude-color.png';
-import geminiLogo from '../assets/gemini-color.png';
+import { usePipelineStore } from '../../stores/pipeline-store';
+import { AgentNode, AgentStatus, RoleDefinition } from '../../../types';
+import claudeLogo from '../../assets/claude-color.png';
+import geminiLogo from '../../assets/gemini-color.png';
 
 const PROVIDER_LOGOS: Record<string, string> = {
   claude: claudeLogo,

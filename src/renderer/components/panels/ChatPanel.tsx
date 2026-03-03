@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
-import { useChatStore, ChatMessage } from '../stores/chat-store';
-import { usePipelineStore } from '../stores/pipeline-store';
+import { useChatStore, ChatMessage } from '../../stores/chat-store';
+import { usePipelineStore } from '../../stores/pipeline-store';
 
 function DirectiveMessage({ msg }: { msg: ChatMessage }) {
   return (

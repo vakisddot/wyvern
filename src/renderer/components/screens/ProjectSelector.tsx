@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { WyvernConfig, RoleDefinition } from '../../types';
-import wyvernLogo from '../assets/wyvern-logo.png';
+import { WyvernConfig, RoleDefinition } from '../../../types';
+import wyvernLogo from '../../assets/wyvern-logo.png';
 
 interface ProjectSelectorProps {
   onProjectLoaded: (data: {

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { usePipelineStore } from '../stores/pipeline-store';
-import { AgentNode, RoleDefinition, WyvernConfig } from '../../types';
-import { FilePath } from './FilePath';
+import { usePipelineStore } from '../../stores/pipeline-store';
+import { AgentNode, RoleDefinition, WyvernConfig } from '../../../types';
+import { FilePath } from '../shared/FilePath';
 
 type Tab = 'artifacts' | 'config';
 
