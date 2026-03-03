@@ -9,8 +9,7 @@ if (require('electron-squirrel-startup')) {
   app.quit();
 }
 
-const dataDir = app.getPath('userData');
-const pipelineManager = new PipelineManager(dataDir);
+const pipelineManager = new PipelineManager();
 
 const projectContext: ProjectContext = {
   orchestrator: null,
@@ -38,7 +37,7 @@ const createWindow = (): void => {
     mainWindow.webContents.openDevTools();
   }
 
-  registerIpcHandlers(mainWindow, pipelineManager, dataDir, projectContext);
+  registerIpcHandlers(mainWindow, pipelineManager, projectContext);
 };
 
 app.on('ready', createWindow);

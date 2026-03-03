@@ -1,8 +1,12 @@
+<p align="center">
+  <img src="src/renderer/assets/wyvern-logo.png" alt="Wyvern" width="256" />
+</p>
+
 # Wyvern
 
-AI Agent Orchestrator — a desktop app that lets you coordinate teams of AI agents to execute complex tasks.
+AI Agent Orchestrator - a desktop app that lets you coordinate teams of AI agents to execute complex tasks.
 
-You give a directive in plain language. Wyvern breaks it down, spawns AI agents (Claude, Gemini, or any CLI LLM), and orchestrates them in a recursive tree. You stay in the loop as CEO — approving plans, reviewing checkpoints, and watching agents work in real time.
+You give a directive in plain language. Wyvern breaks it down, spawns AI agents (Claude, Gemini, or any CLI LLM), and orchestrates them in a recursive tree. You stay in the loop as CEO - approving plans, reviewing checkpoints, and watching agents work in real time.
 
 ## Prerequisites
 
@@ -64,7 +68,7 @@ execution:
 
 ### Role Definitions
 
-Each `.yaml` file in `.wyvern/roles/` defines one agent role. The filename (without extension) becomes the role's **slug** — used in spawn commands and config references.
+Each `.yaml` file in `.wyvern/roles/` defines one agent role. The filename (without extension) becomes the role's **slug** - used in spawn commands and config references.
 
 ```yaml
 # .wyvern/roles/pm.yaml
@@ -72,7 +76,7 @@ name: Product Manager
 description: Receives directives and coordinates work
 model:
   provider: claude
-  variant: sonnet-4-5
+  variant: sonnet-4-6
 can_spawn: [backend, frontend]
 max_depth: 2
 auto_approve: false
@@ -88,7 +92,7 @@ system_prompt: |
 | `name` | yes | Display name in the GUI |
 | `description` | yes | One-line description (shown to parent agents) |
 | `model.provider` | yes | CLI command name: `claude`, `gemini`, etc. |
-| `model.variant` | yes | Model variant hint (e.g. `sonnet-4-5`, `haiku-4-5`) |
+| `model.variant` | yes | Model variant hint (e.g. `sonnet-4-6`, `haiku-4-5`) |
 | `can_spawn` | yes | List of role slugs this agent can delegate to. `[]` for leaf agents |
 | `max_depth` | yes | Max spawning recursion depth. Must be `>= 1` if `can_spawn` is non-empty, `0` for leaf agents |
 | `auto_approve` | yes | If `true`, agent runs with `--dangerously-skip-permissions` (Claude) |
@@ -104,9 +108,9 @@ system_prompt: |
 
 ## How Agents Communicate
 
-Agents are stateless CLI processes. They don't share memory — they communicate through file artifacts and three structured commands in their stdout:
+Agents are stateless CLI processes. They don't share memory - they communicate through file artifacts and three structured commands in their stdout:
 
-### DONE — Complete your task
+### DONE - Complete your task
 
 ```
 [WYVERN:DONE] output=results.md
@@ -114,7 +118,7 @@ Agents are stateless CLI processes. They don't share memory — they communicate
 
 Write your output to a file, then emit this command. Every agent must emit exactly one DONE. The output file bubbles up to the parent agent.
 
-### SPAWN — Delegate to a child agent
+### SPAWN - Delegate to a child agent
 
 ```
 [WYVERN:SPAWN] role=backend input=backend-task.md
@@ -122,7 +126,7 @@ Write your output to a file, then emit this command. Every agent must emit exact
 
 Write the task description to a file, then emit SPAWN. Wyvern creates a child agent with the given role and passes it the input file. The parent is re-invoked with the child's results in its context.
 
-### CHECKPOINT — Ask the CEO
+### CHECKPOINT - Ask the CEO
 
 ```
 [WYVERN:CHECKPOINT] message="Should we use PostgreSQL or SQLite?"
@@ -134,33 +138,34 @@ Pauses the agent and shows the message in the GUI chat. The CEO (you) can approv
 
 Wyvern automatically injects instructions about SPAWN, CHECKPOINT, and DONE into every agent's prompt. Your `system_prompt` should focus on:
 
-1. **What the agent does** — its role and responsibilities
-2. **How it should approach work** — coding style, review standards, etc.
-3. **When to checkpoint** — what decisions need CEO approval
+1. **What the agent does** - its role and responsibilities
+2. **How it should approach work** - coding style, review standards, etc.
+3. **When to checkpoint** - what decisions need CEO approval
 
-You don't need to explain the Wyvern command format — that's handled automatically.
+You don't need to explain the Wyvern command format - that's handled automatically.
 
 ## Using the App
 
-1. **Start Wyvern** — `npm run start`
-2. **Open a project** — Click `[Change Project]` and select your project directory (or create a new one)
-3. **Check CLI tools** — Wyvern verifies all providers referenced by roles are installed
-4. **Enter a directive** — Type your goal in the chat panel and press Enter
-5. **Monitor progress** — The Pipeline Tree shows the agent hierarchy. Click an agent to see its logs, artifacts, and config in the Detail Panel
-6. **Respond to checkpoints** — When an agent asks a question, it appears in the chat. Approve, reject, or type a response
-7. **Review results** — When the pipeline completes, check the output artifacts in the Detail Panel
+1. **Start Wyvern** - `npm run start`
+2. **Open a project** - Click `[Change Project]` and select your project directory (or create a new one)
+3. **Check CLI tools** - Wyvern verifies all providers referenced by roles are installed
+4. **Enter a directive** - Type your goal in the chat panel and press Enter
+5. **Monitor progress** - The Pipeline Tree shows the agent hierarchy. Click an agent to see its logs, artifacts, and config in the Detail Panel
+6. **Respond to checkpoints** - When an agent asks a question, it appears in the chat. Approve, reject, or type a response
+7. **Review results** - When the pipeline completes, check the output artifacts in the Detail Panel
 
 ## Troubleshooting
 
 **"No output yet" in logs**
-- Verify the CLI tool works manually: `echo "hello" | claude -p`
+- Verify the CLI tool works manually: `echo "hello" | claude --model claude-sonnet-4-6 -p`
 - Check that the provider is on your PATH (Wyvern runs `where`/`which` to check)
 - Look at the chat panel for `[stderr]` messages
 
 **Pipeline stuck in Running**
-- Check `execution.timeout_per_agent_minutes` — agents are killed after this
+- Check `execution.timeout_per_agent_minutes` - agents are killed after this
 - An agent may be waiting for a checkpoint response in the chat panel
 
 **Agent exits without DONE**
 - The agent's system prompt should emphasize emitting `[WYVERN:DONE]`
+
 - Check the agent's logs for errors or unexpected output

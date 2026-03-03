@@ -6,11 +6,11 @@ import { generateId, timestamp } from './utils';
 import { initPipeline } from './artifact-manager';
 
 export class PipelineManager extends EventEmitter {
-  private dataDir: string;
+  dataDir: string;
 
-  constructor(dataDir: string) {
+  constructor() {
     super();
-    this.dataDir = dataDir;
+    this.dataDir = '';
   }
 
   private stateFilePath(pipelineId: string): string {

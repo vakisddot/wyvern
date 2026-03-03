@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import wyvernTemplate from './templates/wyvern.yaml';
-import pmTemplate from './templates/roles/pm.yaml';
+import pmTemplate from './templates/roles/product-manager.yaml';
 import workerTemplate from './templates/roles/worker.yaml';
 
 export function scaffoldProject(dirPath: string, projectName: string): void {
@@ -16,6 +16,6 @@ export function scaffoldProject(dirPath: string, projectName: string): void {
   const rolesDir = path.join(dirPath, '.wyvern', 'roles');
   fs.mkdirSync(rolesDir, { recursive: true });
 
-  fs.writeFileSync(path.join(rolesDir, 'pm.yaml'), pmTemplate, 'utf-8');
+  fs.writeFileSync(path.join(rolesDir, 'product-manager.yaml'), pmTemplate, 'utf-8');
   fs.writeFileSync(path.join(rolesDir, 'worker.yaml'), workerTemplate, 'utf-8');
 }

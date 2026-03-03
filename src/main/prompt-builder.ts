@@ -1,4 +1,5 @@
 import { RoleDefinition } from '../types';
+import { formatRoleName } from '../format-role-name';
 
 function buildWyvernInstructions(canSpawn: string[], agentDir: string): string {
   const outputPath = agentDir.replace(/\\/g, '/') + '/output.md';
@@ -47,7 +48,7 @@ function buildWyvernInstructions(canSpawn: string[], agentDir: string): string {
   }
 
   lines.push('');
-  lines.push('The [WYVERN:...] lines must appear EXACTLY as shown — brackets, colons, and spacing included.');
+  lines.push('The [WYVERN:...] lines must appear EXACTLY as shown - brackets, colons, and spacing included.');
   lines.push('Write the file to: ' + outputPath);
 
   return lines.join('\n');
@@ -60,7 +61,7 @@ function buildAvailableRoles(canSpawn: string[], allRoles: Record<string, RoleDe
   for (const slug of canSpawn) {
     const r = allRoles[slug];
     if (r) {
-      lines.push(`- ${slug}: ${r.name} — ${r.description}`);
+      lines.push(`- ${slug}: ${formatRoleName(slug)} - ${r.description}`);
     }
   }
   return lines.join('\n');

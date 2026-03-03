@@ -18,7 +18,6 @@ export interface ProjectContext {
 export function registerIpcHandlers(
   mainWindow: BrowserWindow,
   pipelineManager: PipelineManager,
-  dataDir: string,
   ctx: ProjectContext,
 ): void {
   ipcMain.handle(IPC_CHANNELS.OPEN_PROJECT, async () => {
@@ -31,6 +30,9 @@ export function registerIpcHandlers(
 
     const selectedPath = result.filePaths[0];
     const { config, roles } = openProject(selectedPath);
+
+    const dataDir = path.join(selectedPath, '.wyvern');
+    pipelineManager.dataDir = dataDir;
 
     ctx.projectPath = selectedPath;
     ctx.config = config;
@@ -56,6 +58,9 @@ export function registerIpcHandlers(
     scaffoldProject(selectedPath, projectName);
 
     const { config, roles } = openProject(selectedPath);
+
+    const dataDir = path.join(selectedPath, '.wyvern');
+    pipelineManager.dataDir = dataDir;
 
     ctx.projectPath = selectedPath;
     ctx.config = config;

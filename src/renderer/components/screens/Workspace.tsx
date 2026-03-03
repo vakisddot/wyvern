@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { WyvernConfig, RoleDefinition } from '../../../types';
-import { PipelineTree } from '../panels/PipelineTree';
+import { AgentsPanel } from '../panels/AgentsPanel';
 import { ChatPanel } from '../panels/ChatPanel';
 import { DetailPanel } from '../panels/DetailPanel';
 import { TitleBar } from '../shared/TitleBar';
@@ -57,10 +57,6 @@ export function Workspace({ project, onChangeProject, onProjectUpdate }: { proje
     return () => window.removeEventListener('resize', onResize);
   }, [leftWidth, rightWidth, clampWidths]);
 
-  const statusText = pipeline
-    ? pipeline.status === 'active' ? 'Running' : pipeline.status.charAt(0).toUpperCase() + pipeline.status.slice(1)
-    : 'Idle';
-
   return (
     <div className="flex flex-col h-screen">
       <TitleBar projectName={project.config.project.name} onChangeProject={onChangeProject} />
@@ -70,7 +66,7 @@ export function Workspace({ project, onChangeProject, onProjectUpdate }: { proje
           alt=""
           className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] object-contain opacity-[0.02] pointer-events-none select-none"
         />
-        <PipelineTree roles={project.roles} style={{ width: leftWidth }} />
+        <AgentsPanel roles={project.roles} style={{ width: leftWidth }} />
         <ResizeHandle onDrag={onLeftDrag} />
         <ChatPanel projectPath={project.projectPath} />
         <ResizeHandle onDrag={onRightDrag} />

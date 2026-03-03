@@ -1,8 +1,7 @@
-name: New Role
 description: Describe what this role does
 model:
   provider: claude
-  variant: sonnet-4-5
+  variant: sonnet-4-6
 can_spawn: []
 max_depth: 0
 auto_approve: true

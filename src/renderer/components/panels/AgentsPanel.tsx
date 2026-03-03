@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store';
 import { AgentNode, AgentStatus, RoleDefinition } from '../../../types';
+import { formatRoleName } from '../../../format-role-name';
 import claudeLogo from '../../assets/claude-color.png';
 import geminiLogo from '../../assets/gemini-color.png';
 
@@ -59,10 +60,6 @@ function HexRow({ letter, strokeColor, glowStyle, logo, name, modelLabel, badge,
   );
 }
 
-function formatRoleName(slug: string): string {
-  return slug.split('-').map((w) => w[0].toUpperCase() + w.slice(1)).join(' ');
-}
-
 function modelLabel(role: RoleDefinition): string {
   return `${role.model.provider}/${role.model.variant}`;
 }
@@ -76,7 +73,7 @@ function AgentHexNode({ agent, role, isSelected, onClick }: {
   onClick: () => void;
 }) {
   const colors = STATUS_COLORS[agent.status];
-  const name = role ? role.name : formatRoleName(agent.role);
+  const name = formatRoleName(agent.role);
   const logo = role ? PROVIDER_LOGOS[role.model.provider] : undefined;
 
   return (
@@ -190,11 +187,11 @@ function RoleRoster({ roles, selectedSlug, onSelect }: {
         return (
           <HexRow
             key={slug}
-            letter={role.name.charAt(0).toUpperCase()}
+            letter={formatRoleName(slug).charAt(0).toUpperCase()}
             strokeColor={isEntry ? '#22d3ee' : '#4b5563'}
             glowStyle={isEntry ? '0 0 8px rgba(34,211,238,0.3)' : 'none'}
             logo={PROVIDER_LOGOS[role.model.provider]}
-            name={role.name}
+            name={formatRoleName(slug)}
             modelLabel={modelLabel(role)}
             badge={isEntry ? { text: 'ENTRY', className: 'text-cyan-400' } : undefined}
             isSelected={selectedSlug === slug}
@@ -210,7 +207,7 @@ function RoleRoster({ roles, selectedSlug, onSelect }: {
 
 type LeftTab = 'pipeline' | 'roles';
 
-export function PipelineTree({ roles, style }: { roles: Record<string, RoleDefinition>; style?: React.CSSProperties }) {
+export function AgentsPanel({ roles, style }: { roles: Record<string, RoleDefinition>; style?: React.CSSProperties }) {
   const pipeline = usePipelineStore((s) => s.getActivePipeline());
   const selectedAgentId = usePipelineStore((s) => s.selectedAgentId);
   const selectedRoleSlug = usePipelineStore((s) => s.selectedRoleSlug);

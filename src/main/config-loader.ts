@@ -21,7 +21,7 @@ export function loadConfig(projectPath: string): WyvernConfig {
   const raw = yamlLoad(fs.readFileSync(configPath, 'utf-8')) as Record<string, unknown>;
 
   if (!raw || typeof raw !== 'object') {
-    throw new Error(`Invalid config file: ${configPath} — expected a YAML object`);
+    throw new Error(`Invalid config file: ${configPath} - expected a YAML object`);
   }
 
   const project = raw.project as Record<string, unknown> | undefined;
@@ -55,9 +55,6 @@ export function loadConfig(projectPath: string): WyvernConfig {
 }
 
 function validateRoleFields(slug: string, role: Record<string, unknown>): RoleDefinition {
-  if (typeof role.name !== 'string') {
-    throw new Error(`Role "${slug}" missing required field: name`);
-  }
   if (typeof role.description !== 'string') {
     throw new Error(`Role "${slug}" missing required field: description`);
   }
@@ -84,7 +81,6 @@ function validateRoleFields(slug: string, role: Record<string, unknown>): RoleDe
   }
 
   return {
-    name: role.name as string,
     description: role.description as string,
     model: { provider: model.provider as string, variant: model.variant as string },
     can_spawn: role.can_spawn as string[],
@@ -117,7 +113,7 @@ export function loadRoles(projectPath: string): Record<string, RoleDefinition> {
     const raw = yamlLoad(fs.readFileSync(filePath, 'utf-8')) as Record<string, unknown>;
 
     if (!raw || typeof raw !== 'object') {
-      throw new Error(`Invalid role file: ${filePath} — expected a YAML object`);
+      throw new Error(`Invalid role file: ${filePath} - expected a YAML object`);
     }
 
     roles[slug] = validateRoleFields(slug, raw);
@@ -132,10 +128,10 @@ export function validateRoles(roles: Record<string, RoleDefinition>): void {
   // Exactly one entry point
   const entryPoints = slugs.filter(s => roles[s].entry_point === true);
   if (entryPoints.length === 0) {
-    throw new Error('No role has entry_point: true — exactly one is required');
+    throw new Error('No role has entry_point: true - exactly one is required');
   }
   if (entryPoints.length > 1) {
-    throw new Error(`Multiple roles have entry_point: true: ${entryPoints.join(', ')} — exactly one is required`);
+    throw new Error(`Multiple roles have entry_point: true: ${entryPoints.join(', ')} - exactly one is required`);
   }
 
   // All can_spawn references must exist

@@ -6,7 +6,6 @@ export interface RoleModel {
 }
 
 export interface RoleDefinition {
-  name: string;
   description: string;
   model: RoleModel;
   can_spawn: string[];
