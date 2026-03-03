@@ -5,7 +5,7 @@ user_invocable: true
 
 # Wyvern UI Design System
 
-Reference mockup: `docs/plan/interface-example.jpg` — always check this image before building or modifying any UI component.
+(OUTDATED) Reference mockup: `docs/plan/interface-example.jpg` — always check this image before building or modifying any UI component.
 
 The app is a dark-themed three-panel layout with a CLI/terminal aesthetic.
 
@@ -77,3 +77,4 @@ All interactive elements use **bracketed monospace text**, not pill/rounded butt
 - No gradients anywhere (except the app body background).
 - No rounded pill buttons anywhere. Bracketed text only.
 - No emojis in the UI.
+- No em dashes.
