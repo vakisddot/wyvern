@@ -29,10 +29,6 @@ export interface WyvernConfig {
     max_parallel_agents: number;
     timeout_per_agent_minutes: number;
   };
-  cost: {
-    warn_threshold_usd: number;
-    hard_limit_usd: number;
-  };
 }
 
 // --- Agent runtime state ---
@@ -51,7 +47,6 @@ export interface AgentNode {
   spawnedChildren: string[];
   startedAt: number;
   finishedAt?: number;
-  costUsd?: number;
 }
 
 // --- Pipeline state ---
@@ -66,7 +61,6 @@ export interface PipelineState {
   agents: Record<string, AgentNode>;
   createdAt: number;
   updatedAt: number;
-  totalCostUsd: number;
   featureBranch: string;
 }
 

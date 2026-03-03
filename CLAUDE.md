@@ -45,6 +45,8 @@ Quick summary: dark theme, JetBrains Mono everywhere, CLI/ImGui aesthetic with `
 - TypeScript ~4.5.4 is old. `@types/node` from Electron 40 uses syntax too new for it — `skipLibCheck: true` in tsconfig is load-bearing. Never run raw `tsc --noEmit` without the tsconfig.
 - No `ts-node` installed. Compilation goes through Webpack (Electron Forge). Verify code with `npm run lint` or `electron-forge start`, never raw `tsc`.
 - ESLint enforces named imports from packages that support them (e.g., `import { load } from 'js-yaml'` not `import yaml from 'js-yaml'`).
+- **Assets (images, icons)**: stored in `src/renderer/assets/`. Webpack handles them via `asset/inline` (base64 data URIs). Import with `import logo from '../assets/foo.png'` and use as `<img src={logo} />`. New asset types need a matching rule in `webpack.rules.ts` and a type declaration in `src/assets.d.ts`.
+- Provider names in code must match the YAML config values (`claude`, `gemini`) — not company names (`anthropic`, `google`).
 
 ## Don'ts
 

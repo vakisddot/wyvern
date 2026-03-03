@@ -107,7 +107,7 @@ export function ChatPanel({ projectPath }: { projectPath: string }) {
       const elapsed = ((pipeline.updatedAt - pipeline.createdAt) / 1000).toFixed(0);
       addMessage({
         type: 'status',
-        content: `Pipeline ${currentStatus}. ${agentCount} agent(s), $${pipeline.totalCostUsd.toFixed(2)} total cost, ${elapsed}s elapsed.`,
+        content: `Pipeline ${currentStatus}. ${agentCount} agent(s), ${elapsed}s elapsed.`,
         pipelineId: pipeline.id,
       });
     }

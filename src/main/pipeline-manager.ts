@@ -23,7 +23,6 @@ export class PipelineManager extends EventEmitter {
       agents: {},
       createdAt: now,
       updatedAt: now,
-      totalCostUsd: 0,
       featureBranch: useWorktrees ? `wyvern/${id}/main` : '',
     };
 

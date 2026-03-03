@@ -39,11 +39,6 @@ export function loadConfig(projectPath: string): WyvernConfig {
     throw new Error('Config missing required fields: execution.max_parallel_agents, execution.timeout_per_agent_minutes');
   }
 
-  const cost = raw.cost as Record<string, unknown> | undefined;
-  if (!cost || typeof cost.warn_threshold_usd !== 'number' || typeof cost.hard_limit_usd !== 'number') {
-    throw new Error('Config missing required fields: cost.warn_threshold_usd, cost.hard_limit_usd');
-  }
-
   let gitConfig: { use_worktrees: boolean } | undefined;
   const git = raw.git as Record<string, unknown> | undefined;
   if (git) {
@@ -65,10 +60,6 @@ export function loadConfig(projectPath: string): WyvernConfig {
     execution: {
       max_parallel_agents: execution.max_parallel_agents as number,
       timeout_per_agent_minutes: execution.timeout_per_agent_minutes as number,
-    },
-    cost: {
-      warn_threshold_usd: cost.warn_threshold_usd as number,
-      hard_limit_usd: cost.hard_limit_usd as number,
     },
   };
 }

@@ -127,7 +127,7 @@ children: ${agent.spawnedChildren.length}`}
   );
 }
 
-export function DetailPanel() {
+export function DetailPanel({ style }: { style?: React.CSSProperties }) {
   const agent = usePipelineStore((s) => s.getSelectedAgent());
   const [activeTab, setActiveTab] = useState<Tab>('artifacts');
 
@@ -136,7 +136,7 @@ export function DetailPanel() {
     : '';
 
   return (
-    <div className="w-[350px] min-w-[350px] bg-gray-900 border-l border-gray-700 flex flex-col overflow-hidden">
+    <div className="bg-gray-900 shrink-0 flex flex-col overflow-hidden" style={style}>
       <div className="p-3 border-b border-gray-700">
         <h2 className="text-sm font-semibold text-gray-100">Detail Panel</h2>
         {agent && (

@@ -57,10 +57,6 @@ git:
 execution:
   max_parallel_agents: 4
   timeout_per_agent_minutes: 10
-
-cost:
-  warn_threshold_usd: 5.00
-  hard_limit_usd: 20.00
 ```
 
 | Field | Required | Description |
@@ -70,8 +66,6 @@ cost:
 | `git.use_worktrees` | no | Give each agent an isolated git worktree. Default: `true` |
 | `execution.max_parallel_agents` | yes | Max agents running concurrently |
 | `execution.timeout_per_agent_minutes` | yes | Kill an agent after this many minutes |
-| `cost.warn_threshold_usd` | yes | Show a warning when pipeline cost exceeds this |
-| `cost.hard_limit_usd` | yes | Abort the pipeline when cost exceeds this |
 
 ### Role Definitions
 

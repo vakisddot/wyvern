@@ -10,14 +10,6 @@ import { buildPrompt } from './prompt-builder';
 import { parseOutputLine } from './output-parser';
 import { GitManager } from './git-manager';
 
-function extractCostFromOutput(lines: string[]): number {
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const match = lines[i].match(/\$(\d+\.\d{2,})/);
-    if (match) return parseFloat(match[1]);
-  }
-  return 0;
-}
-
 function resolveOutputFile(filename: string, outputDir: string, projectPath: string): string {
   const inOutputDir = path.join(outputDir, filename);
   if (fs.existsSync(inOutputDir)) return inOutputDir;
@@ -265,25 +257,6 @@ export class Orchestrator extends EventEmitter {
       }
 
       const code = exitResult.code;
-
-      const agentCost = extractCostFromOutput(outputLines);
-      if (agentCost > 0) {
-        this.updateAgentInState(agentId, { costUsd: agentCost });
-        this.state = { ...this.getState(), totalCostUsd: this.getState().totalCostUsd + agentCost };
-        this.saveState();
-
-        if (this.getState().totalCostUsd >= this.config.cost.hard_limit_usd) {
-          this.updateAgentInState(agentId, { status: 'failed', finishedAt: timestamp() });
-          throw new Error('Pipeline cost ($' + this.getState().totalCostUsd.toFixed(2) + ') exceeded hard limit ($' + this.config.cost.hard_limit_usd.toFixed(2) + ')');
-        }
-        if (this.getState().totalCostUsd >= this.config.cost.warn_threshold_usd) {
-          this.emit('agent-output', {
-            pipelineId: this.getState().id,
-            agentId,
-            chunk: '[COST WARNING] Pipeline cost: $' + this.getState().totalCostUsd.toFixed(2) + ' (warn threshold: $' + this.config.cost.warn_threshold_usd.toFixed(2) + ')',
-          });
-        }
-      }
 
       const doneCmd = commands.find(c => c.type === 'DONE') as Extract<AgentCommand, { type: 'DONE' }> | undefined;
       const spawnCmds = commands.filter(c => c.type === 'SPAWN') as Extract<AgentCommand, { type: 'SPAWN' }>[];
