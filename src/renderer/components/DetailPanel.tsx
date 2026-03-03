@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { usePipelineStore } from '../stores/pipeline-store';
-import { useChatStore } from '../stores/chat-store';
 import { AgentNode, RoleDefinition, WyvernConfig } from '../../types';
 import { FilePath } from './FilePath';
 
-type Tab = 'artifacts' | 'logs' | 'config';
+type Tab = 'artifacts' | 'config';
 
 function TabButton({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   return (
@@ -20,8 +19,7 @@ function ArtifactsTab({ agent }: { agent: AgentNode }) {
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const roleName = agent.role;
-  const basePath = `.wyvern/pipelines/${agent.pipelineId}/${roleName}`;
+  const allFiles = [...agent.inputArtifacts, ...agent.outputArtifacts];
 
   useEffect(() => {
     setSelectedFile(null);
@@ -42,10 +40,21 @@ function ArtifactsTab({ agent }: { agent: AgentNode }) {
 
   return (
     <div className="flex flex-col gap-2 flex-1 overflow-hidden">
-      <p className="text-xs text-gray-500 truncate">{basePath}/</p>
+      <p className="text-xs text-gray-500 truncate">{agent.role}-{agent.id}</p>
       <div className="text-xs">
-        <FileFolder name="input" files={agent.inputArtifacts} onFileClick={handleFileClick} selectedFile={selectedFile} />
-        <FileFolder name="output" files={agent.outputArtifacts} onFileClick={handleFileClick} selectedFile={selectedFile} />
+        {allFiles.map((f) => {
+          const fileName = f.split(/[/\\]/).pop() ?? f;
+          const isSelected = selectedFile === f;
+          return (
+            <div
+              key={f}
+              className={`cursor-pointer ${isSelected ? 'text-cyan-400' : 'text-gray-500 hover:text-gray-300'}`}
+              onClick={() => handleFileClick(f)}
+            >
+              {fileName}
+            </div>
+          );
+        })}
       </div>
       {selectedFile && (
         <div className="flex-1 overflow-y-auto border border-gray-700 bg-gray-950 mt-2">
@@ -67,52 +76,6 @@ function ArtifactsTab({ agent }: { agent: AgentNode }) {
   );
 }
 
-function FileFolder({ name, files, onFileClick, selectedFile }: {
-  name: string;
-  files: string[];
-  onFileClick: (path: string) => void;
-  selectedFile: string | null;
-}) {
-  if (files.length === 0) return null;
-  return (
-    <div className="mb-1">
-      <div className="flex items-center gap-1 text-gray-400">
-        <span className="text-gray-600">&#9660;</span>
-        <span>{name}/</span>
-      </div>
-      {files.map((f) => {
-        const fileName = f.split('/').pop() ?? f;
-        const isSelected = selectedFile === f;
-        return (
-          <div
-            key={f}
-            className={`ml-4 cursor-pointer ${isSelected ? 'text-cyan-400' : 'text-gray-500 hover:text-gray-300'}`}
-            onClick={() => onFileClick(f)}
-          >
-            {fileName}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-function LogsTab({ agent }: { agent: AgentNode }) {
-  const messages = useChatStore((s) => s.messages);
-  const agentMessages = messages.filter((m) => m.type === 'agent-output' && m.agentId === agent.id);
-
-  return (
-    <div className="flex-1 overflow-y-auto">
-      {agentMessages.length === 0 ? (
-        <p className="text-xs text-gray-500 text-center mt-4">No output yet</p>
-      ) : (
-        <pre className="text-xs text-gray-400 whitespace-pre-wrap">
-          {agentMessages.map((m) => m.content).join('')}
-        </pre>
-      )}
-    </div>
-  );
-}
 
 function ConfigTab({ agent }: { agent: AgentNode }) {
   return (
@@ -181,12 +144,10 @@ function AgentDetailView({ agent }: { agent: AgentNode }) {
       </div>
       <div className="flex gap-3 px-3 py-2 border-b border-gray-700">
         <TabButton label="Artifacts" active={activeTab === 'artifacts'} onClick={() => setActiveTab('artifacts')} />
-        <TabButton label="Logs" active={activeTab === 'logs'} onClick={() => setActiveTab('logs')} />
         <TabButton label="Config" active={activeTab === 'config'} onClick={() => setActiveTab('config')} />
       </div>
       <div className="flex-1 overflow-y-auto p-3 flex flex-col">
         {activeTab === 'artifacts' && <ArtifactsTab agent={agent} />}
-        {activeTab === 'logs' && <LogsTab agent={agent} />}
         {activeTab === 'config' && <ConfigTab agent={agent} />}
       </div>
       <div className="px-3 py-2 border-t border-gray-700 text-xs text-gray-500 flex justify-between">

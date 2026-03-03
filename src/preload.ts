@@ -48,12 +48,6 @@ const api: WyvernAPI = {
     return () => { ipcRenderer.removeListener(IPC_CHANNELS.PIPELINE_UPDATE, listener); };
   },
 
-  onAgentOutput: (cb) => {
-    const listener = (_event: Electron.IpcRendererEvent, data: Parameters<typeof cb>[0]) => cb(data);
-    ipcRenderer.on(IPC_CHANNELS.AGENT_OUTPUT, listener);
-    return () => { ipcRenderer.removeListener(IPC_CHANNELS.AGENT_OUTPUT, listener); };
-  },
-
   onCheckpointRequest: (cb) => {
     const listener = (_event: Electron.IpcRendererEvent, data: Parameters<typeof cb>[0]) => cb(data);
     ipcRenderer.on(IPC_CHANNELS.CHECKPOINT_REQUEST, listener);

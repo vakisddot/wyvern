@@ -2,7 +2,7 @@ import { create } from 'zustand';
 
 export interface ChatMessage {
   id: string;
-  type: 'directive' | 'checkpoint' | 'approval' | 'rejection' | 'status' | 'agent-output';
+  type: 'directive' | 'checkpoint' | 'approval' | 'rejection' | 'status';
   content: string;
   agentId?: string;
   roleName?: string;

@@ -22,9 +22,6 @@ export interface RoleDefinition {
 export interface WyvernConfig {
   project: { name: string };
   repos: Record<string, string>;
-  git?: {
-    use_worktrees: boolean;
-  };
   execution: {
     max_parallel_agents: number;
     timeout_per_agent_minutes: number;
@@ -61,7 +58,6 @@ export interface PipelineState {
   agents: Record<string, AgentNode>;
   createdAt: number;
   updatedAt: number;
-  featureBranch: string;
 }
 
 // --- Parsed structured commands from agent output ---
@@ -87,7 +83,6 @@ export const IPC_CHANNELS = {
   OPEN_IN_EDITOR: 'wyvern:open-in-editor',
   // Main -> Renderer (push events)
   PIPELINE_UPDATE: 'wyvern:pipeline-update',
-  AGENT_OUTPUT: 'wyvern:agent-output',
   CHECKPOINT_REQUEST: 'wyvern:checkpoint-request',
 } as const;
 
@@ -105,6 +100,5 @@ export interface WyvernAPI {
   checkCliTools: () => Promise<{ missing: string[] }>;
   openInEditor: (filePath: string) => Promise<string>;
   onPipelineUpdate: (cb: (state: PipelineState) => void) => () => void;
-  onAgentOutput: (cb: (data: { pipelineId: string; agentId: string; chunk: string }) => void) => () => void;
   onCheckpointRequest: (cb: (data: { pipelineId: string; agentId: string; message: string }) => void) => () => void;
 }

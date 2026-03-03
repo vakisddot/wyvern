@@ -48,17 +48,6 @@ function StatusMessage({ msg }: { msg: ChatMessage }) {
   );
 }
 
-function AgentOutputMessage({ msg }: { msg: ChatMessage }) {
-  return (
-    <details className="text-xs">
-      <summary className="text-gray-500 cursor-pointer hover:text-gray-400">
-        Agent output ({msg.agentId})
-      </summary>
-      <pre className="text-gray-400 whitespace-pre-wrap mt-1 pl-2 border-l border-gray-700">{msg.content}</pre>
-    </details>
-  );
-}
-
 function ApprovalMessage({ msg }: { msg: ChatMessage }) {
   return (
     <p className="text-xs text-emerald-400/70 px-1">{msg.content}</p>
@@ -81,7 +70,6 @@ function MessageRenderer({ msg, onApprove, onReject, onAbort }: {
     case 'directive':   return <DirectiveMessage msg={msg} />;
     case 'checkpoint':  return <CheckpointMessage msg={msg} onApprove={onApprove} onReject={onReject} onAbort={onAbort} />;
     case 'status':      return <StatusMessage msg={msg} />;
-    case 'agent-output': return <AgentOutputMessage msg={msg} />;
     case 'approval':    return <ApprovalMessage msg={msg} />;
     case 'rejection':   return <RejectionMessage msg={msg} />;
     default:            return null;

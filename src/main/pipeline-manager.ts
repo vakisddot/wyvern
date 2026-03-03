@@ -5,14 +5,21 @@ import { PipelineState, AgentNode } from '../types';
 import { generateId, timestamp } from './utils';
 import { initPipeline } from './artifact-manager';
 
-function stateFilePath(projectPath: string, pipelineId: string): string {
-  return path.join(projectPath, '.wyvern', 'pipelines', pipelineId, 'pipeline-state.json');
-}
-
 export class PipelineManager extends EventEmitter {
-  createPipeline(projectPath: string, directive: string, useWorktrees: boolean): PipelineState {
+  private dataDir: string;
+
+  constructor(dataDir: string) {
+    super();
+    this.dataDir = dataDir;
+  }
+
+  private stateFilePath(pipelineId: string): string {
+    return path.join(this.dataDir, 'pipelines', pipelineId, 'pipeline-state.json');
+  }
+
+  createPipeline(directive: string): PipelineState {
     const id = generateId();
-    initPipeline(projectPath, id, directive);
+    initPipeline(this.dataDir, id, directive);
 
     const now = timestamp();
     const state: PipelineState = {
@@ -23,22 +30,21 @@ export class PipelineManager extends EventEmitter {
       agents: {},
       createdAt: now,
       updatedAt: now,
-      featureBranch: useWorktrees ? `wyvern/${id}/main` : '',
     };
 
-    this.savePipeline(projectPath, state);
+    this.savePipeline(state);
     return state;
   }
 
-  loadPipeline(projectPath: string, pipelineId: string): PipelineState {
-    const raw = fs.readFileSync(stateFilePath(projectPath, pipelineId), 'utf-8');
+  loadPipeline(pipelineId: string): PipelineState {
+    const raw = fs.readFileSync(this.stateFilePath(pipelineId), 'utf-8');
     return JSON.parse(raw) as PipelineState;
   }
 
-  savePipeline(projectPath: string, state: PipelineState): void {
+  savePipeline(state: PipelineState): void {
     state.updatedAt = timestamp();
     fs.writeFileSync(
-      stateFilePath(projectPath, state.id),
+      this.stateFilePath(state.id),
       JSON.stringify(state, null, 2),
       'utf-8'
     );
@@ -62,8 +68,8 @@ export class PipelineManager extends EventEmitter {
     };
   }
 
-  listPipelines(projectPath: string): PipelineState[] {
-    const pipelinesDir = path.join(projectPath, '.wyvern', 'pipelines');
+  listPipelines(): PipelineState[] {
+    const pipelinesDir = path.join(this.dataDir, 'pipelines');
     if (!fs.existsSync(pipelinesDir)) return [];
 
     const entries = fs.readdirSync(pipelinesDir, { withFileTypes: true });

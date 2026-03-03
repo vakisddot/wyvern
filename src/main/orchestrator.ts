@@ -3,53 +3,39 @@ import fs from 'fs';
 import path from 'path';
 import { WyvernConfig, RoleDefinition, PipelineState, AgentNode, AgentCommand } from '../types';
 import { PipelineManager } from './pipeline-manager';
-import { ensureAgentDirs, writeArtifact, readArtifact } from './artifact-manager';
+import { ensureAgentDir, writeArtifact, readArtifact } from './artifact-manager';
 import { generateId, timestamp } from './utils';
-import { spawnAgent } from './agent-spawner';
 import { buildPrompt } from './prompt-builder';
 import { parseOutputLine } from './output-parser';
-import { GitManager } from './git-manager';
+import { openAgentTerminal } from './terminal-launcher';
+import { watchForOutput } from './file-watcher';
 
-function resolveOutputFile(filename: string, outputDir: string, projectPath: string): string {
-  const inOutputDir = path.join(outputDir, filename);
-  if (fs.existsSync(inOutputDir)) return inOutputDir;
-
-  const inProject = path.join(projectPath, filename);
-  if (fs.existsSync(inProject)) return inProject;
-
-  return '';
-}
+const OUTPUT_FILE = 'output.md';
 
 export class Orchestrator extends EventEmitter {
   private config: WyvernConfig;
   private roles: Record<string, RoleDefinition>;
   private projectPath: string;
+  private dataDir: string;
   private pipelineManager: PipelineManager;
-  private gitManager: GitManager;
   private state: PipelineState | null;
   private checkpointResolvers: Map<string, { resolve: (response: string) => void; reject: (reason: string) => void }>;
-  private activeAgentCount: number;
 
   constructor(
     config: WyvernConfig,
     roles: Record<string, RoleDefinition>,
     projectPath: string,
-    pipelineManager: PipelineManager,
-    gitManager: GitManager
+    dataDir: string,
+    pipelineManager: PipelineManager
   ) {
     super();
     this.config = config;
     this.roles = roles;
     this.projectPath = projectPath;
+    this.dataDir = dataDir;
     this.pipelineManager = pipelineManager;
-    this.gitManager = gitManager;
     this.state = null;
     this.checkpointResolvers = new Map();
-    this.activeAgentCount = 0;
-  }
-
-  private get useWorktrees(): boolean {
-    return this.config.git?.use_worktrees !== false;
   }
 
   private getState(): PipelineState {
@@ -59,7 +45,7 @@ export class Orchestrator extends EventEmitter {
 
   private saveState(): void {
     const s = this.getState();
-    this.pipelineManager.savePipeline(this.projectPath, s);
+    this.pipelineManager.savePipeline(s);
     this.emit('pipeline-update', s);
   }
 
@@ -91,29 +77,7 @@ export class Orchestrator extends EventEmitter {
   }
 
   async runPipeline(directive: string): Promise<PipelineState> {
-    this.state = this.pipelineManager.createPipeline(this.projectPath, directive, this.useWorktrees);
-
-    if (this.useWorktrees) {
-      const repoKeys = new Set<string>();
-      for (const role of Object.values(this.roles)) {
-        if (role.repo) repoKeys.add(role.repo);
-      }
-      for (const repoKey of repoKeys) {
-        const repoPath = this.config.repos[repoKey];
-        if (repoPath) {
-          try {
-            this.gitManager.createFeatureBranch(repoPath, this.getState().id);
-          } catch (err) {
-            const msg = err instanceof Error ? err.message : String(err);
-            this.emit('agent-output', {
-              pipelineId: this.getState().id,
-              agentId: '',
-              chunk: '[WARN] Failed to create feature branch for repo "' + repoKey + '": ' + msg,
-            });
-          }
-        }
-      }
-    }
+    this.state = this.pipelineManager.createPipeline(directive);
 
     const entrySlug = Object.keys(this.roles).find(
       slug => this.roles[slug].entry_point === true
@@ -122,11 +86,12 @@ export class Orchestrator extends EventEmitter {
       throw new Error('No entry point role defined');
     }
 
-    const dirs = ensureAgentDirs(this.projectPath, this.state.id, entrySlug);
-    const directivePath = writeArtifact(dirs.inputDir, 'directive.md', directive);
+    const entryAgentId = generateId();
+    const entryDir = ensureAgentDir(this.dataDir, this.state.id, entrySlug, entryAgentId);
+    const directivePath = writeArtifact(entryDir, 'directive.md', directive);
 
     try {
-      await this.invokeAgent(entrySlug, [directivePath], null, 0);
+      await this.invokeAgent(entrySlug, [directivePath], null, 0, entryAgentId);
       this.state = { ...this.getState(), status: 'completed' };
       this.saveState();
     } catch (err) {
@@ -144,15 +109,16 @@ export class Orchestrator extends EventEmitter {
     roleSlug: string,
     inputArtifacts: string[],
     parentId: string | null,
-    depth: number
+    depth: number,
+    preGeneratedId?: string
   ): Promise<string> {
     const role = this.roles[roleSlug];
     if (!role) {
-      throw new Error(`Unknown role: ${roleSlug}`);
+      throw new Error('Unknown role: ' + roleSlug);
     }
 
     const s = this.getState();
-    const agentId = generateId();
+    const agentId = preGeneratedId || generateId();
     const node: AgentNode = {
       id: agentId,
       role: roleSlug,
@@ -172,30 +138,13 @@ export class Orchestrator extends EventEmitter {
     }
     this.saveState();
 
-    const dirs = ensureAgentDirs(this.projectPath, this.getState().id, roleSlug);
+    const agentDir = ensureAgentDir(this.dataDir, this.getState().id, roleSlug, agentId);
     const inputContent = inputArtifacts.map(p => readArtifact(p)).join('\n\n');
     const pipelineContext = 'Directive: ' + this.getState().directive;
     let accumulatedContext = '';
 
     const repoPath = role.repo ? (this.config.repos[role.repo] || null) : null;
-    let worktreePath: string | null = null;
-    let taskBranch: string | null = null;
-    if (repoPath && this.useWorktrees) {
-      try {
-        worktreePath = this.gitManager.createWorktree(repoPath, s.id, agentId, roleSlug);
-        taskBranch = `wyvern/${s.id}/${roleSlug}-${agentId}`;
-      } catch (err) {
-        const msg = err instanceof Error ? err.message : String(err);
-        this.emit('agent-output', {
-          pipelineId: s.id,
-          agentId,
-          chunk: '[ERROR] Failed to create worktree: ' + msg,
-        });
-        this.updateAgentInState(agentId, { status: 'failed', finishedAt: timestamp() });
-        throw new Error('Worktree creation failed for "' + roleSlug + '" (' + agentId + '): ' + msg);
-      }
-    }
-
+    const cwd = repoPath || this.projectPath;
     const timeoutMs = this.config.execution.timeout_per_agent_minutes * 60_000;
 
     for (;;) {
@@ -203,94 +152,53 @@ export class Orchestrator extends EventEmitter {
         ? inputContent + '\n\n--- Previous Context ---\n' + accumulatedContext
         : inputContent;
 
-      const prompt = buildPrompt(role, this.roles, fullInput, pipelineContext);
-      const cwd = worktreePath || repoPath || this.projectPath;
-      const proc = spawnAgent(role, cwd, prompt);
+      const prompt = buildPrompt(role, this.roles, fullInput, pipelineContext, agentDir);
 
-      const outputLines: string[] = [];
-      const commands: AgentCommand[] = [];
+      const promptPath = writeArtifact(agentDir, 'directive.md', prompt);
 
-      this.activeAgentCount++;
+      // Open terminal and track the process
+      const proc = openAgentTerminal(role, cwd, promptPath);
 
-      proc.stdout.on('data', (chunk: string) => {
-        this.emit('agent-output', {
-          pipelineId: this.getState().id,
-          agentId,
-          chunk,
+      // Promise that rejects if the terminal is closed before output arrives
+      const processExited = new Promise<never>((_resolve, reject) => {
+        proc.on('exit', () => {
+          reject(new Error('Terminal closed before agent produced output'));
         });
       });
 
-      proc.stdout.on('line', (line: string) => {
-        outputLines.push(line);
-        const cmd = parseOutputLine(line);
-        if (cmd) {
-          commands.push(cmd);
+      // Race: output file appears vs terminal closed vs timeout
+      let outputFilePath: string;
+      try {
+        outputFilePath = await Promise.race([
+          watchForOutput(agentDir, OUTPUT_FILE, timeoutMs),
+          processExited,
+        ]);
+      } catch {
+        // Check if output appeared despite the process exiting
+        const possiblePath = path.join(agentDir, OUTPUT_FILE);
+        if (fs.existsSync(possiblePath)) {
+          outputFilePath = possiblePath;
+        } else {
+          this.updateAgentInState(agentId, { status: 'failed', finishedAt: timestamp() });
+          throw new Error('Agent "' + roleSlug + '" (' + agentId + ') terminated before producing output');
         }
-      });
-
-      proc.stderr.on('line', (line: string) => {
-        this.emit('agent-output', {
-          pipelineId: this.getState().id,
-          agentId,
-          chunk: '[stderr] ' + line + '\n',
-        });
-      });
-
-      const timeoutPromise = new Promise<{ code: number; timedOut: true }>((resolve) => {
-        setTimeout(() => resolve({ code: -1, timedOut: true }), timeoutMs);
-      });
-
-      const exitResult = await Promise.race([
-        proc.onExit.then(r => ({ ...r, timedOut: false as const })),
-        timeoutPromise,
-      ]);
-
-      this.activeAgentCount--;
-
-      if (exitResult.timedOut) {
-        proc.kill();
-        this.updateAgentInState(agentId, {
-          status: 'failed',
-          finishedAt: timestamp(),
-        });
-        throw new Error('Agent "' + roleSlug + '" (' + agentId + ') timed out after ' + this.config.execution.timeout_per_agent_minutes + ' minutes');
       }
 
-      const code = exitResult.code;
+      // Read and parse the output file
+      const outputContent = readArtifact(outputFilePath);
+      const outputLines = outputContent.split('\n');
+      const commands: AgentCommand[] = [];
+      for (const line of outputLines) {
+        const cmd = parseOutputLine(line);
+        if (cmd) commands.push(cmd);
+      }
+
+      // Delete output file so next iteration can watch for a fresh one
+      try { fs.unlinkSync(outputFilePath); } catch { /* ignore */ }
 
       const doneCmd = commands.find(c => c.type === 'DONE') as Extract<AgentCommand, { type: 'DONE' }> | undefined;
       const spawnCmds = commands.filter(c => c.type === 'SPAWN') as Extract<AgentCommand, { type: 'SPAWN' }>[];
       const checkpointCmd = commands.find(c => c.type === 'CHECKPOINT') as Extract<AgentCommand, { type: 'CHECKPOINT' }> | undefined;
-
-      if (doneCmd) {
-        const resolved = resolveOutputFile(doneCmd.output, dirs.outputDir, this.projectPath);
-        let artifactPath: string;
-
-        if (resolved) {
-          const content = readArtifact(resolved);
-          artifactPath = writeArtifact(dirs.outputDir, doneCmd.output, content);
-        } else {
-          artifactPath = writeArtifact(dirs.outputDir, doneCmd.output, outputLines.join('\n'));
-        }
-
-        this.updateAgentInState(agentId, {
-          status: 'done',
-          outputArtifacts: [...this.getState().agents[agentId].outputArtifacts, artifactPath],
-          finishedAt: timestamp(),
-        });
-
-        if (worktreePath && taskBranch && repoPath) {
-          const featureBranch = this.getState().featureBranch;
-          const mergeResult = this.gitManager.mergeTaskBranch(repoPath, featureBranch, taskBranch);
-          if (mergeResult.conflict) {
-            this.state = { ...this.getState(), status: 'paused' };
-            this.saveState();
-          }
-          this.gitManager.removeWorktree(repoPath, worktreePath);
-        }
-
-        return artifactPath;
-      }
 
       if (spawnCmds.length > 0) {
         if (role.max_depth < 1) {
@@ -298,7 +206,7 @@ export class Orchestrator extends EventEmitter {
           continue;
         }
 
-        const validSpawns: Array<{ spawnCmd: Extract<AgentCommand, { type: 'SPAWN' }>; childInputPath: string }> = [];
+        const validSpawns: Array<{ spawnCmd: Extract<AgentCommand, { type: 'SPAWN' }>; childInputPath: string; childAgentId: string }> = [];
 
         for (const spawnCmd of spawnCmds) {
           if (!role.can_spawn.includes(spawnCmd.role)) {
@@ -312,7 +220,7 @@ export class Orchestrator extends EventEmitter {
             continue;
           }
 
-          const inputPath = path.join(this.projectPath, spawnCmd.input);
+          const inputPath = path.join(agentDir, spawnCmd.input);
           let childInputContent: string;
           try {
             childInputContent = readArtifact(inputPath);
@@ -321,14 +229,15 @@ export class Orchestrator extends EventEmitter {
             continue;
           }
 
-          const childDirs = ensureAgentDirs(this.projectPath, this.getState().id, spawnCmd.role);
-          const childInputPath = writeArtifact(childDirs.inputDir, spawnCmd.input, childInputContent);
+          const childAgentId = generateId();
+          const childDir = ensureAgentDir(this.dataDir, this.getState().id, spawnCmd.role, childAgentId);
+          const childInputPath = writeArtifact(childDir, spawnCmd.input, childInputContent);
 
           this.updateAgentInState(agentId, {
             spawnedChildren: [...this.getState().agents[agentId].spawnedChildren, spawnCmd.role],
           });
 
-          validSpawns.push({ spawnCmd, childInputPath });
+          validSpawns.push({ spawnCmd, childInputPath, childAgentId });
         }
 
         if (validSpawns.length > 0) {
@@ -351,11 +260,11 @@ export class Orchestrator extends EventEmitter {
 
               while (running < maxParallel && idx < validSpawns.length) {
                 const currentIdx = idx;
-                const { spawnCmd, childInputPath } = validSpawns[currentIdx];
+                const { spawnCmd, childInputPath, childAgentId } = validSpawns[currentIdx];
                 idx++;
                 running++;
 
-                this.invokeAgent(spawnCmd.role, [childInputPath], agentId, depth + 1)
+                this.invokeAgent(spawnCmd.role, [childInputPath], agentId, depth + 1, childAgentId)
                   .then((childOutputPath) => {
                     const childOutput = readArtifact(childOutputPath);
                     results.push({ index: currentIdx, text: 'Result from ' + spawnCmd.role + ':\n' + childOutput });
@@ -397,15 +306,23 @@ export class Orchestrator extends EventEmitter {
         continue;
       }
 
+      if (doneCmd) {
+        const artifactPath = writeArtifact(agentDir, doneCmd.output, outputContent);
+
+        this.updateAgentInState(agentId, {
+          status: 'done',
+          outputArtifacts: [...this.getState().agents[agentId].outputArtifacts, artifactPath],
+          finishedAt: timestamp(),
+        });
+
+        return artifactPath;
+      }
+
       this.updateAgentInState(agentId, {
         status: 'failed',
         finishedAt: timestamp(),
       });
-
-      if (code !== 0) {
-        throw new Error('Agent "' + roleSlug + '" (' + agentId + ') exited with code ' + code);
-      }
-      throw new Error('Agent "' + roleSlug + '" (' + agentId + ') exited without emitting [WYVERN:DONE]');
+      throw new Error('Agent "' + roleSlug + '" (' + agentId + ') output contains no valid commands');
     }
   }
 }

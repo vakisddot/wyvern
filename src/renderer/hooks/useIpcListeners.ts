@@ -7,15 +7,7 @@ export function useIpcListeners(): void {
     const unsub1 = window.wyvern.onPipelineUpdate((state) => {
       usePipelineStore.getState().updatePipeline(state);
     });
-    const unsub2 = window.wyvern.onAgentOutput((data) => {
-      useChatStore.getState().addMessage({
-        type: 'agent-output',
-        content: data.chunk,
-        agentId: data.agentId,
-        pipelineId: data.pipelineId,
-      });
-    });
-    const unsub3 = window.wyvern.onCheckpointRequest((data) => {
+    const unsub2 = window.wyvern.onCheckpointRequest((data) => {
       useChatStore.getState().addMessage({
         type: 'checkpoint',
         content: data.message,
@@ -23,6 +15,6 @@ export function useIpcListeners(): void {
         pipelineId: data.pipelineId,
       });
     });
-    return () => { unsub1(); unsub2(); unsub3(); };
+    return () => { unsub1(); unsub2(); };
   }, []);
 }

@@ -3,7 +3,6 @@ import fs from 'fs';
 import { IPC_CHANNELS, WyvernConfig, RoleDefinition } from '../types';
 import { Orchestrator } from './orchestrator';
 import { PipelineManager } from './pipeline-manager';
-import { GitManager } from './git-manager';
 import { openProject, checkCliTools } from './project-manager';
 import { scaffoldProject } from './project-scaffold';
 
@@ -17,6 +16,7 @@ export interface ProjectContext {
 export function registerIpcHandlers(
   mainWindow: BrowserWindow,
   pipelineManager: PipelineManager,
+  dataDir: string,
   ctx: ProjectContext,
 ): void {
   ipcMain.handle(IPC_CHANNELS.OPEN_PROJECT, async () => {
@@ -34,8 +34,7 @@ export function registerIpcHandlers(
     ctx.config = config;
     ctx.roles = roles;
 
-    const gitManager = new GitManager();
-    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, pipelineManager, gitManager);
+    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, dataDir, pipelineManager);
     forwardOrchestratorEvents(mainWindow, ctx.orchestrator);
 
     mainWindow.setTitle(`Wyvern \u2014 ${config.project.name}`);
@@ -60,8 +59,7 @@ export function registerIpcHandlers(
     ctx.config = config;
     ctx.roles = roles;
 
-    const gitManager = new GitManager();
-    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, pipelineManager, gitManager);
+    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, dataDir, pipelineManager);
     forwardOrchestratorEvents(mainWindow, ctx.orchestrator);
 
     mainWindow.setTitle(`Wyvern \u2014 ${config.project.name}`);
@@ -87,12 +85,12 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC_CHANNELS.GET_PIPELINES, async () => {
     if (!ctx.projectPath) return [];
-    return pipelineManager.listPipelines(ctx.projectPath);
+    return pipelineManager.listPipelines();
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_PIPELINE_STATE, async (_event, id: string) => {
     if (!ctx.projectPath) throw new Error('No project loaded');
-    return pipelineManager.loadPipeline(ctx.projectPath, id);
+    return pipelineManager.loadPipeline(id);
   });
 
   ipcMain.handle(IPC_CHANNELS.GET_ARTIFACT, async (_event, filePath: string) => {
@@ -115,10 +113,6 @@ export function registerIpcHandlers(
 export function forwardOrchestratorEvents(mainWindow: BrowserWindow, orchestrator: Orchestrator): void {
   orchestrator.on('pipeline-update', (state) => {
     mainWindow.webContents.send(IPC_CHANNELS.PIPELINE_UPDATE, state);
-  });
-
-  orchestrator.on('agent-output', (data) => {
-    mainWindow.webContents.send(IPC_CHANNELS.AGENT_OUTPUT, data);
   });
 
   orchestrator.on('checkpoint-request', (data) => {
