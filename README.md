@@ -15,7 +15,6 @@ You give a directive in plain language. Wyvern breaks it down, spawns AI agents 
 - At least one AI CLI tool installed and on your PATH:
   - [Claude Code CLI](https://docs.anthropic.com/en/docs/claude-code) (`claude`)
   - [Gemini CLI](https://github.com/google-gemini/gemini-cli) (`gemini`)
-  - Or any LLM CLI that reads from stdin and writes to stdout
 
 ## Install & Run
 
