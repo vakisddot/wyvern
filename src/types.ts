@@ -10,7 +10,6 @@ export interface RoleDefinition {
   model: RoleModel;
   can_spawn: string[];
   max_depth: number;
-  auto_approve: boolean;
   system_prompt: string;
   repo?: string;
   entry_point?: boolean;
@@ -21,6 +20,7 @@ export interface RoleDefinition {
 export interface WyvernConfig {
   project: { name: string };
   repos: Record<string, string>;
+  context_files: string[];
   execution: {
     max_parallel_agents: number;
     timeout_per_agent_minutes: number;
@@ -83,6 +83,7 @@ export const IPC_CHANNELS = {
   GET_PIPELINES: 'wyvern:get-pipelines',
   GET_PIPELINE_STATE: 'wyvern:get-pipeline-state',
   GET_ARTIFACT: 'wyvern:get-artifact',
+  LIST_AGENT_FILES: 'wyvern:list-agent-files',
   OPEN_PROJECT: 'wyvern:open-project',
   CREATE_PROJECT: 'wyvern:create-project',
   CHECK_CLI_TOOLS: 'wyvern:check-cli-tools',
@@ -102,6 +103,7 @@ export interface WyvernAPI {
   getPipelines: () => Promise<PipelineState[]>;
   getPipelineState: (id: string) => Promise<PipelineState>;
   getArtifact: (filePath: string) => Promise<string>;
+  listAgentFiles: (agentDir: string) => Promise<string[]>;
   openProject: () => Promise<{ config: WyvernConfig; roles: Record<string, RoleDefinition>; projectPath: string } | null>;
   createProject: (projectName: string) => Promise<{ config: WyvernConfig; roles: Record<string, RoleDefinition>; projectPath: string } | null>;
   checkCliTools: () => Promise<{ missing: string[] }>;

@@ -18,6 +18,10 @@ const api: WyvernAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.GET_ARTIFACT, filePath);
   },
 
+  listAgentFiles: (agentDir: string) => {
+    return ipcRenderer.invoke(IPC_CHANNELS.LIST_AGENT_FILES, agentDir);
+  },
+
   openProject: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.OPEN_PROJECT);
   },

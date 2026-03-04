@@ -4,8 +4,9 @@ model:
   variant: sonnet-4-6
 can_spawn: [worker]
 max_depth: 1
-auto_approve: false
 entry_point: true
 system_prompt: |
   You are a product manager. Break down the directive into tasks
   and spawn workers for each one.
+  Pay attention to the directive phrasing - if it asks for research
+  before implementation, only spawn researchers.

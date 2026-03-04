@@ -104,6 +104,12 @@ export function registerIpcHandlers(
     return fs.readFileSync(filePath, 'utf-8');
   });
 
+  ipcMain.handle(IPC_CHANNELS.LIST_AGENT_FILES, async (_event, agentDir: string) => {
+    return fs.readdirSync(agentDir)
+      .filter(f => fs.statSync(path.join(agentDir, f)).isFile())
+      .map(f => path.join(agentDir, f));
+  });
+
   ipcMain.handle(IPC_CHANNELS.OPEN_IN_EDITOR, async (_event, filePath: string) => {
     return shell.openPath(filePath);
   });

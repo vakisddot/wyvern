@@ -13,16 +13,29 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   );
 }
 
+function deriveAgentDir(agent: AgentNode): string | null {
+  const anyPath = agent.inputArtifacts[0] || agent.outputArtifacts[0];
+  if (!anyPath) return null;
+  const parts = anyPath.split(/[/\\]/);
+  parts.pop();
+  return parts.join('/');
+}
+
 function ArtifactsTab({ agent }: { agent: AgentNode }) {
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-
-  const allFiles = [...agent.inputArtifacts, ...agent.outputArtifacts];
+  const [allFiles, setAllFiles] = useState<string[]>([]);
 
   useEffect(() => {
     setSelectedFile(null);
     setFileContent(null);
+    const dir = deriveAgentDir(agent);
+    if (dir) {
+      window.wyvern.listAgentFiles(dir).then(setAllFiles).catch(() => setAllFiles([]));
+    } else {
+      setAllFiles([...agent.inputArtifacts, ...agent.outputArtifacts]);
+    }
   }, [agent.id]);
 
   function handleFileClick(path: string) {

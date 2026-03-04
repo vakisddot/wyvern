@@ -53,6 +53,14 @@ repos:
   api: ~/code/my-api
   web: ~/code/my-web
 
+# Files to include in every agent's context.
+# Plain paths are relative to the project root.
+# Prefix with a repo alias to resolve against that repo.
+context_files:
+  - brief.md
+  - api:README.md
+  - web:README.md
+
 execution:
   max_parallel_agents: 4
   timeout_per_agent_minutes: 5
@@ -63,6 +71,7 @@ execution:
 |-------|----------|-------------|
 | `project.name` | yes | Display name shown in the title bar |
 | `repos` | yes | Alias-to-path map. Use `{}` if no repos needed |
+| `context_files` | no | Files to inject into agent context. Plain paths resolve from project root, `alias:path` resolves from the named repo. Defaults to `[]` |
 | `execution.max_parallel_agents` | yes | Max agents running concurrently |
 | `execution.timeout_per_agent_minutes` | yes | Kill an agent after this many minutes |
 | `execution.auto_close_terminals` | no | Close agent terminal windows when done. Defaults to `true` |
@@ -79,7 +88,6 @@ model:
   variant: sonnet-4-6
 can_spawn: [backend, frontend]
 max_depth: 2
-auto_approve: false
 entry_point: true
 system_prompt: |
   You are a product manager. Break down the directive into
@@ -94,7 +102,6 @@ system_prompt: |
 | `model.variant` | yes | Model variant hint (e.g. `sonnet-4-6`, `haiku-4-5`) |
 | `can_spawn` | yes | List of role slugs this agent can delegate to. `[]` for leaf agents |
 | `max_depth` | yes | Max spawning recursion depth. Must be `>= 1` if `can_spawn` is non-empty, `0` for leaf agents |
-| `auto_approve` | yes | If `true`, agent runs with `--dangerously-skip-permissions` (Claude) |
 | `entry_point` | no | Exactly one role must set this to `true`. This is the first agent spawned |
 | `repo` | no | Repo alias from `wyvern.yaml` `repos` map. Sets the agent's working directory |
 | `system_prompt` | yes | Instructions given to the agent. Describe its role, goals, and constraints |

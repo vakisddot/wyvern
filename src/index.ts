@@ -1,4 +1,4 @@
-import { app, BrowserWindow, nativeImage } from 'electron';
+import { app, BrowserWindow, Menu, nativeImage } from 'electron';
 import { PipelineManager } from './main/pipeline-manager';
 import { registerIpcHandlers, ProjectContext } from './main/ipc-handlers';
 import iconDataUrl from './renderer/assets/wyvern-logo.png';
@@ -37,7 +37,9 @@ const createWindow = (): void => {
 
   mainWindow.loadURL(MAIN_WINDOW_WEBPACK_ENTRY);
 
-  if (!app.isPackaged) {
+  if (app.isPackaged) {
+    Menu.setApplicationMenu(null);
+  } else {
     mainWindow.webContents.openDevTools();
   }
 

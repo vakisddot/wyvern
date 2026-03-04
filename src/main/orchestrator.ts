@@ -9,6 +9,7 @@ import { buildPrompt } from './prompt-builder';
 import { parseOutputLine } from './output-parser';
 import { openAgentTerminal, killTerminal } from './terminal-launcher';
 import { watchForOutput } from './file-watcher';
+import { buildRepoSummary } from './repo-scanner';
 
 const OUTPUT_FILE = 'output.md';
 
@@ -19,6 +20,7 @@ export class Orchestrator extends EventEmitter {
   private dataDir: string;
   private pipelineManager: PipelineManager;
   private state: PipelineState | null;
+  private repoSummary = '';
 
   constructor(
     config: WyvernConfig,
@@ -53,6 +55,7 @@ export class Orchestrator extends EventEmitter {
   }
 
   async runPipeline(directive: string): Promise<PipelineState> {
+    this.repoSummary = buildRepoSummary(this.config, this.projectPath);
     this.state = this.pipelineManager.createPipeline(directive);
 
     const entrySlug = Object.keys(this.roles).find(
@@ -116,7 +119,8 @@ export class Orchestrator extends EventEmitter {
 
     const agentDir = ensureAgentDir(this.dataDir, this.getState().id, roleSlug, agentId);
     const inputContent = inputArtifacts.map(p => readArtifact(p)).join('\n\n');
-    const pipelineContext = 'Directive: ' + this.getState().directive;
+    const pipelineContext = 'Directive: ' + this.getState().directive
+      + (this.repoSummary ? '\n\n' + this.repoSummary : '');
     let accumulatedContext = '';
 
     const repoPath = role.repo ? (this.config.repos[role.repo] || null) : null;
@@ -187,7 +191,7 @@ export class Orchestrator extends EventEmitter {
           continue;
         }
 
-        const validSpawns: Array<{ spawnCmd: Extract<AgentCommand, { type: 'SPAWN' }>; childInputPath: string; childAgentId: string }> = [];
+        const validSpawns: Array<{ spawnCmd: Extract<AgentCommand, { type: 'SPAWN' }>; childInputPaths: string[]; childAgentId: string }> = [];
 
         for (const spawnCmd of spawnCmds) {
           if (!role.can_spawn.includes(spawnCmd.role)) {
@@ -212,13 +216,17 @@ export class Orchestrator extends EventEmitter {
 
           const childAgentId = generateId();
           const childDir = ensureAgentDir(this.dataDir, this.getState().id, spawnCmd.role, childAgentId);
-          const childInputPath = writeArtifact(childDir, spawnCmd.input, childInputContent);
+          const childInputPaths = [writeArtifact(childDir, spawnCmd.input, childInputContent)];
+
+          if (accumulatedContext) {
+            childInputPaths.push(writeArtifact(childDir, 'context.md', accumulatedContext));
+          }
 
           this.updateAgentInState(agentId, {
             spawnedChildren: [...this.getState().agents[agentId].spawnedChildren, spawnCmd.role],
           });
 
-          validSpawns.push({ spawnCmd, childInputPath, childAgentId });
+          validSpawns.push({ spawnCmd, childInputPaths, childAgentId });
         }
 
         if (validSpawns.length > 0) {
@@ -241,11 +249,11 @@ export class Orchestrator extends EventEmitter {
 
               while (running < maxParallel && idx < validSpawns.length) {
                 const currentIdx = idx;
-                const { spawnCmd, childInputPath, childAgentId } = validSpawns[currentIdx];
+                const { spawnCmd, childInputPaths, childAgentId } = validSpawns[currentIdx];
                 idx++;
                 running++;
 
-                this.invokeAgent(spawnCmd.role, [childInputPath], agentId, depth + 1, childAgentId)
+                this.invokeAgent(spawnCmd.role, childInputPaths, agentId, depth + 1, childAgentId)
                   .then((childOutputPath) => {
                     const childOutput = readArtifact(childOutputPath);
                     results.push({ index: currentIdx, text: 'Result from ' + spawnCmd.role + ':\n' + childOutput });

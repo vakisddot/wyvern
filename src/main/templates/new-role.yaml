@@ -4,6 +4,5 @@ model:
   variant: sonnet-4-6
 can_spawn: []
 max_depth: 0
-auto_approve: true
 system_prompt: |
   You are a new role. Define your behavior here.

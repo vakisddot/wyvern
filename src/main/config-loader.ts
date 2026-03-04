@@ -48,9 +48,14 @@ export function loadConfig(projectPath: string): WyvernConfig {
     resolvedRepos[alias] = resolveTilde(repoPath);
   }
 
+  const contextFiles = Array.isArray(raw.context_files)
+    ? (raw.context_files as string[]).filter(f => typeof f === 'string')
+    : [];
+
   return {
     project: { name: project.name as string },
     repos: resolvedRepos,
+    context_files: contextFiles,
     execution: {
       max_parallel_agents: execution.max_parallel_agents as number,
       timeout_per_agent_minutes: execution.timeout_per_agent_minutes as number,
@@ -77,10 +82,6 @@ function validateRoleFields(slug: string, role: Record<string, unknown>): RoleDe
     throw new Error(`Role "${slug}" missing required field: max_depth (must be a number)`);
   }
 
-  if (typeof role.auto_approve !== 'boolean') {
-    throw new Error(`Role "${slug}" missing required field: auto_approve (must be a boolean)`);
-  }
-
   if (typeof role.system_prompt !== 'string') {
     throw new Error(`Role "${slug}" missing required field: system_prompt`);
   }
@@ -90,7 +91,6 @@ function validateRoleFields(slug: string, role: Record<string, unknown>): RoleDe
     model: { provider: model.provider as string, variant: model.variant as string },
     can_spawn: role.can_spawn as string[],
     max_depth: role.max_depth as number,
-    auto_approve: role.auto_approve as boolean,
     system_prompt: role.system_prompt as string,
     ...(typeof role.repo === 'string' ? { repo: role.repo } : {}),
     ...(typeof role.entry_point === 'boolean' ? { entry_point: role.entry_point } : {}),
