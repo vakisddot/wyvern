@@ -108,9 +108,11 @@ export function AgentDetailView({ agent }: { agent: AgentNode }) {
 
   return (
     <>
-      <div className="p-3 border-b border-gray-700">
-        <h2 className="text-sm font-semibold text-gray-100">Detail Panel</h2>
-        <p className="text-xs text-gray-400 mt-0.5">&apos;{roleName}&apos;</p>
+      <div className="p-3 border-b border-gray-700 flex items-start justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-100">Detail Panel</h2>
+          <p className="text-xs text-gray-400 mt-0.5">&apos;{roleName}&apos;</p>
+        </div>
       </div>
       <div className="flex gap-3 px-3 py-2 border-b border-gray-700">
         <TabButton label="Artifacts" active={activeTab === 'artifacts'} onClick={() => setActiveTab('artifacts')} />

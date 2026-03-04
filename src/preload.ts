@@ -38,6 +38,7 @@ const api: WyvernAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.OPEN_IN_EDITOR, filePath);
   },
 
+
   saveConfig: (projectPath: string, content: string) => {
     return ipcRenderer.invoke(IPC_CHANNELS.SAVE_CONFIG, projectPath, content);
   },

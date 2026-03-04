@@ -18,7 +18,6 @@ export function ProjectSelector({ onProjectLoaded }: ProjectSelectorProps) {
   const [projectName, setProjectName] = useState('');
 
   async function handleCreate() {
-    if (!projectName.trim()) return;
     setError(null);
     setCliWarnings([]);
     setLoading(true);
@@ -101,26 +100,33 @@ export function ProjectSelector({ onProjectLoaded }: ProjectSelectorProps) {
             </button>
           ) : (
             <div className="flex items-center gap-2">
-              <input
-                type="text"
-                className="bg-gray-800 border border-gray-600 text-gray-100 text-sm px-2 py-1 focus:border-cyan-400 focus:outline-none"
-                placeholder="Project name..."
-                value={projectName}
-                onChange={(e) => setProjectName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') handleCreate();
-                  if (e.key === 'Escape') {
-                    setShowNameInput(false);
-                    setProjectName('');
-                  }
-                }}
-                autoFocus
-                disabled={loading}
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  className="bg-gray-800 border border-gray-600 text-gray-100 text-sm px-2 py-1 focus:border-cyan-400 focus:outline-none w-48"
+                  placeholder="Project name..."
+                  value={projectName}
+                  onChange={(e) => setProjectName(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') handleCreate();
+                    if (e.key === 'Escape') {
+                      setShowNameInput(false);
+                      setProjectName('');
+                    }
+                  }}
+                  autoFocus
+                  disabled={loading}
+                />
+                {projectName.trim() && (
+                  <span className="absolute top-1/2 -translate-y-1/2 text-sm text-gray-600 pointer-events-none" style={{ left: `calc(0.5rem + ${projectName.length}ch)` }}>
+                    -wyvern/
+                  </span>
+                )}
+              </div>
               <button
                 className="text-sm text-gray-300 hover:text-white transition-colors disabled:text-gray-600"
                 onClick={handleCreate}
-                disabled={loading || !projectName.trim()}
+                disabled={loading}
               >
                 {loading ? '[Creating...]' : '[Confirm]'}
               </button>

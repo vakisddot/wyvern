@@ -139,6 +139,10 @@ export class Orchestrator extends EventEmitter {
       // Open terminal and track the process
       const proc = openAgentTerminal(role, cwd, promptPath);
 
+      if (proc.pid) {
+        this.updateAgentInState(agentId, { terminalPid: proc.pid });
+      }
+
       // Promise that rejects if the terminal is closed before output arrives
       const processExited = new Promise<never>((_resolve, reject) => {
         proc.on('exit', () => {
@@ -206,9 +210,8 @@ export class Orchestrator extends EventEmitter {
           }
 
           const inputPath = path.join(agentDir, spawnCmd.input);
-          let childInputContent: string;
           try {
-            childInputContent = readArtifact(inputPath);
+            readArtifact(inputPath);
           } catch {
             accumulatedContext += '\nSPAWN FAILED: Input file "' + spawnCmd.input + '" not found.';
             continue;
@@ -216,7 +219,7 @@ export class Orchestrator extends EventEmitter {
 
           const childAgentId = generateId();
           const childDir = ensureAgentDir(this.dataDir, this.getState().id, spawnCmd.role, childAgentId);
-          const childInputPaths = [writeArtifact(childDir, spawnCmd.input, childInputContent)];
+          const childInputPaths = [inputPath];
 
           if (accumulatedContext) {
             childInputPaths.push(writeArtifact(childDir, 'context.md', accumulatedContext));

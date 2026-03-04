@@ -36,4 +36,8 @@ export const rules: Required<ModuleOptions>['rules'] = [
     test: /\.yaml$/,
     type: 'asset/source',
   },
+  {
+    test: /\.md$/,
+    type: 'asset/source',
+  },
 ];

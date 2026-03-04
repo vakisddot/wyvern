@@ -31,14 +31,13 @@ export function registerIpcHandlers(
     const selectedPath = result.filePaths[0];
     const { config, roles } = openProject(selectedPath);
 
-    const dataDir = path.join(selectedPath, '.wyvern');
-    pipelineManager.dataDir = dataDir;
+    pipelineManager.dataDir = selectedPath;
 
     ctx.projectPath = selectedPath;
     ctx.config = config;
     ctx.roles = roles;
 
-    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, dataDir, pipelineManager);
+    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, selectedPath, pipelineManager);
     forwardOrchestratorEvents(mainWindow, ctx.orchestrator);
 
     mainWindow.setTitle(`Wyvern - ${config.project.name}`);
@@ -54,24 +53,27 @@ export function registerIpcHandlers(
 
     if (result.canceled || result.filePaths.length === 0) return null;
 
-    const selectedPath = result.filePaths[0];
-    scaffoldProject(selectedPath, projectName);
+    const parentDir = result.filePaths[0];
+    const slug = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    const folderName = slug ? slug + '-wyvern' : 'wyvern';
+    const projectDir = path.join(parentDir, folderName);
+    fs.mkdirSync(projectDir, { recursive: true });
+    scaffoldProject(projectDir, projectName || 'Wyvern');
 
-    const { config, roles } = openProject(selectedPath);
+    const { config, roles } = openProject(projectDir);
 
-    const dataDir = path.join(selectedPath, '.wyvern');
-    pipelineManager.dataDir = dataDir;
+    pipelineManager.dataDir = projectDir;
 
-    ctx.projectPath = selectedPath;
+    ctx.projectPath = projectDir;
     ctx.config = config;
     ctx.roles = roles;
 
-    ctx.orchestrator = new Orchestrator(config, roles, selectedPath, dataDir, pipelineManager);
+    ctx.orchestrator = new Orchestrator(config, roles, projectDir, projectDir, pipelineManager);
     forwardOrchestratorEvents(mainWindow, ctx.orchestrator);
 
     mainWindow.setTitle(`Wyvern - ${config.project.name}`);
 
-    return { config, roles, projectPath: selectedPath };
+    return { config, roles, projectPath: projectDir };
   });
 
   ipcMain.handle(IPC_CHANNELS.CHECK_CLI_TOOLS, async () => {
@@ -114,6 +116,7 @@ export function registerIpcHandlers(
     return shell.openPath(filePath);
   });
 
+
   ipcMain.handle(IPC_CHANNELS.SAVE_CONFIG, async (_event, projectPath: string, content: string): Promise<ConfigUpdateResult> => {
     try {
       const configPath = path.join(projectPath, 'wyvern.yaml');
@@ -130,7 +133,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC_CHANNELS.SAVE_ROLE, async (_event, projectPath: string, slug: string, content: string): Promise<ConfigUpdateResult> => {
     try {
-      const filePath = path.join(projectPath, '.wyvern', 'roles', `${slug}.yaml`);
+      const filePath = path.join(projectPath, 'roles', `${slug}.yaml`);
       if (!fs.existsSync(filePath)) {
         return { ok: false, error: `Role file not found: ${slug}.yaml` };
       }
@@ -147,7 +150,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC_CHANNELS.CREATE_ROLE, async (_event, projectPath: string, slug: string, content: string): Promise<ConfigUpdateResult> => {
     try {
-      const filePath = path.join(projectPath, '.wyvern', 'roles', `${slug}.yaml`);
+      const filePath = path.join(projectPath, 'roles', `${slug}.yaml`);
       if (fs.existsSync(filePath)) {
         return { ok: false, error: `Role "${slug}" already exists` };
       }
@@ -164,7 +167,7 @@ export function registerIpcHandlers(
 
   ipcMain.handle(IPC_CHANNELS.DELETE_ROLE, async (_event, projectPath: string, slug: string): Promise<ConfigUpdateResult> => {
     try {
-      const filePath = path.join(projectPath, '.wyvern', 'roles', `${slug}.yaml`);
+      const filePath = path.join(projectPath, 'roles', `${slug}.yaml`);
       if (!fs.existsSync(filePath)) {
         return { ok: false, error: `Role file not found: ${slug}.yaml` };
       }

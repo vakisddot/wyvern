@@ -21,7 +21,7 @@ export function openAgentTerminal(role: RoleDefinition, cwd: string, inputFilePa
       cmd = 'gemini --model ' + provider + '-' + variant + ' ' + prompt;
       break;
     default:
-      throw new Error('Unsupported provider: ' + provider); 
+      throw new Error('Unsupported provider: ' + provider);
   }
 
   const batDir = path.join(os.tmpdir(), 'wyvern-launches');

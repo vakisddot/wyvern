@@ -98,7 +98,7 @@ function validateRoleFields(slug: string, role: Record<string, unknown>): RoleDe
 }
 
 export function loadRoles(projectPath: string): Record<string, RoleDefinition> {
-  const rolesDir = path.join(projectPath, '.wyvern', 'roles');
+  const rolesDir = path.join(projectPath, 'roles');
 
   if (!fs.existsSync(rolesDir)) {
     throw new Error(`Roles directory not found: ${rolesDir}`);

@@ -81,7 +81,7 @@ export function DetailPanel({ roles, config, projectPath, onProjectUpdate, style
       <RoleDetailView
         slug={selectedRoleSlug}
         role={selectedRole}
-        filePath={`${projectPath}/.wyvern/roles/${selectedRoleSlug}.yaml`}
+        filePath={`${projectPath}/roles/${selectedRoleSlug}.yaml`}
         projectPath={projectPath}
         onProjectUpdate={onProjectUpdate}
       />

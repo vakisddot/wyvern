@@ -31,7 +31,7 @@ function InfoRow({ label, children }: { label: string; children: React.ReactNode
 
 export function PipelineDetailView({ pipeline, projectPath }: { pipeline: PipelineState; projectPath: string }) {
   const agentCount = Object.keys(pipeline.agents).length;
-  const folderPath = `${projectPath}/.wyvern/pipelines/${pipeline.id}`;
+  const folderPath = `${projectPath}/pipelines/${pipeline.id}`;
 
   return (
     <>

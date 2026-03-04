@@ -1,4 +1,4 @@
-// --- Role definition (parsed from .wyvern/roles/*.yaml) ---
+// --- Role definition (parsed from roles/*.yaml) ---
 
 export interface RoleModel {
   provider: string;
@@ -42,6 +42,7 @@ export interface AgentNode {
   inputArtifacts: string[];
   outputArtifacts: string[];
   spawnedChildren: string[];
+  terminalPid?: number;
   startedAt: number;
   finishedAt?: number;
 }
@@ -88,6 +89,7 @@ export const IPC_CHANNELS = {
   CREATE_PROJECT: 'wyvern:create-project',
   CHECK_CLI_TOOLS: 'wyvern:check-cli-tools',
   OPEN_IN_EDITOR: 'wyvern:open-in-editor',
+
   SAVE_CONFIG: 'wyvern:save-config',
   SAVE_ROLE: 'wyvern:save-role',
   CREATE_ROLE: 'wyvern:create-role',
@@ -108,6 +110,7 @@ export interface WyvernAPI {
   createProject: (projectName: string) => Promise<{ config: WyvernConfig; roles: Record<string, RoleDefinition>; projectPath: string } | null>;
   checkCliTools: () => Promise<{ missing: string[] }>;
   openInEditor: (filePath: string) => Promise<string>;
+
   saveConfig: (projectPath: string, content: string) => Promise<ConfigUpdateResult>;
   saveRole: (projectPath: string, slug: string, content: string) => Promise<ConfigUpdateResult>;
   createRole: (projectPath: string, slug: string, content: string) => Promise<ConfigUpdateResult>;
