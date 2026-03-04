@@ -6,14 +6,6 @@ const api: WyvernAPI = {
     return ipcRenderer.invoke(IPC_CHANNELS.START_PIPELINE, directive, projectPath);
   },
 
-  approveCheckpoint: (pipelineId: string, agentId: string, response: string) => {
-    ipcRenderer.send(IPC_CHANNELS.APPROVE_CHECKPOINT, pipelineId, agentId, response);
-  },
-
-  rejectCheckpoint: (pipelineId: string, agentId: string, reason: string) => {
-    ipcRenderer.send(IPC_CHANNELS.REJECT_CHECKPOINT, pipelineId, agentId, reason);
-  },
-
   getPipelines: () => {
     return ipcRenderer.invoke(IPC_CHANNELS.GET_PIPELINES);
   },
@@ -62,12 +54,6 @@ const api: WyvernAPI = {
     const listener = (_event: Electron.IpcRendererEvent, state: Parameters<typeof cb>[0]) => cb(state);
     ipcRenderer.on(IPC_CHANNELS.PIPELINE_UPDATE, listener);
     return () => { ipcRenderer.removeListener(IPC_CHANNELS.PIPELINE_UPDATE, listener); };
-  },
-
-  onCheckpointRequest: (cb) => {
-    const listener = (_event: Electron.IpcRendererEvent, data: Parameters<typeof cb>[0]) => cb(data);
-    ipcRenderer.on(IPC_CHANNELS.CHECKPOINT_REQUEST, listener);
-    return () => { ipcRenderer.removeListener(IPC_CHANNELS.CHECKPOINT_REQUEST, listener); };
   },
 };
 

@@ -14,14 +14,13 @@ const STATUS_COLORS: Record<AgentStatus, { stroke: string; glow: string; text: s
   running:     { stroke: '#fbbf24', glow: '0 0 12px rgba(251,191,36,0.5)',  text: 'text-amber-400' },
   done:        { stroke: '#34d399', glow: '0 0 12px rgba(52,211,153,0.5)',  text: 'text-emerald-400' },
   failed:      { stroke: '#f87171', glow: '0 0 12px rgba(248,113,113,0.5)', text: 'text-red-400' },
-  waiting_ceo: { stroke: '#22d3ee', glow: '0 0 12px rgba(34,211,238,0.5)',  text: 'text-cyan-400' },
   pending:     { stroke: '#60a5fa', glow: '0 0 12px rgba(96,165,250,0.5)',  text: 'text-blue-400' },
 };
 
 const HEX_POINTS = '20,2 37,11 37,29 20,38 3,29 3,11';
 
 function statusLabel(status: AgentStatus): string {
-  return status === 'waiting_ceo' ? 'WAITING CEO' : status.toUpperCase();
+  return status.toUpperCase();
 }
 
 // --- Shared hex row used by both pipeline agents and role roster ---

@@ -19,7 +19,6 @@ export class Orchestrator extends EventEmitter {
   private dataDir: string;
   private pipelineManager: PipelineManager;
   private state: PipelineState | null;
-  private checkpointResolvers: Map<string, { resolve: (response: string) => void; reject: (reason: string) => void }>;
 
   constructor(
     config: WyvernConfig,
@@ -35,7 +34,6 @@ export class Orchestrator extends EventEmitter {
     this.dataDir = dataDir;
     this.pipelineManager = pipelineManager;
     this.state = null;
-    this.checkpointResolvers = new Map();
   }
 
   private getState(): PipelineState {
@@ -52,28 +50,6 @@ export class Orchestrator extends EventEmitter {
   private updateAgentInState(agentId: string, updates: Partial<AgentNode>): void {
     this.state = this.pipelineManager.updateAgent(this.getState(), agentId, updates);
     this.saveState();
-  }
-
-  private waitForCheckpoint(agentId: string): Promise<string> {
-    return new Promise<string>((resolve, reject) => {
-      this.checkpointResolvers.set(agentId, { resolve, reject });
-    });
-  }
-
-  resolveCheckpoint(agentId: string, response: string): void {
-    const resolver = this.checkpointResolvers.get(agentId);
-    if (resolver) {
-      resolver.resolve(response);
-      this.checkpointResolvers.delete(agentId);
-    }
-  }
-
-  rejectCheckpoint(agentId: string, reason: string): void {
-    const resolver = this.checkpointResolvers.get(agentId);
-    if (resolver) {
-      resolver.reject(reason);
-      this.checkpointResolvers.delete(agentId);
-    }
   }
 
   async runPipeline(directive: string): Promise<PipelineState> {
@@ -204,7 +180,6 @@ export class Orchestrator extends EventEmitter {
 
       const hasDone = commands.some(c => c.type === 'DONE');
       const spawnCmds = commands.filter(c => c.type === 'SPAWN') as Extract<AgentCommand, { type: 'SPAWN' }>[];
-      const checkpointCmd = commands.find(c => c.type === 'CHECKPOINT') as Extract<AgentCommand, { type: 'CHECKPOINT' }> | undefined;
 
       if (spawnCmds.length > 0) {
         if (role.max_depth < 1) {
@@ -293,22 +268,6 @@ export class Orchestrator extends EventEmitter {
             accumulatedContext += '\n' + childResults.join('\n\n');
           }
         }
-        continue;
-      }
-
-      if (checkpointCmd) {
-        this.updateAgentInState(agentId, { status: 'waiting_ceo' });
-
-        this.emit('checkpoint-request', {
-          pipelineId: this.getState().id,
-          agentId,
-          message: checkpointCmd.message,
-        });
-
-        const response = await this.waitForCheckpoint(agentId);
-        this.updateAgentInState(agentId, { status: 'running' });
-
-        accumulatedContext += '\nCEO Response: ' + response;
         continue;
       }
 

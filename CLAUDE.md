@@ -6,9 +6,6 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 AI Agent Orchestrator - Electron desktop app (TypeScript + React).
 
-(OUTDATED) Read `docs/WYVERN_PRODUCT_DESIGN.md` for the full product spec.
-(OUTDATED) Read `docs/plan/step-0-overview.md` for the build plan and file map.
-
 ## Architecture
 
 - **Main process** (`src/main/`): Node.js - orchestrator, agent spawner, git manager, config loader, IPC handlers

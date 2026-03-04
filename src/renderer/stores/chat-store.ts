@@ -2,10 +2,8 @@ import { create } from 'zustand';
 
 export interface ChatMessage {
   id: string;
-  type: 'directive' | 'checkpoint' | 'approval' | 'rejection' | 'status';
+  type: 'directive' | 'status';
   content: string;
-  agentId?: string;
-  roleName?: string;
   pipelineId?: string;
   timestamp: number;
 }

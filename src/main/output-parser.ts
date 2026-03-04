@@ -1,6 +1,6 @@
 import { AgentCommand } from '../types';
 
-const COMMAND_REGEX = /\[WYVERN:(SPAWN|CHECKPOINT|DONE)\]\s*(.*)/;
+const COMMAND_REGEX = /\[WYVERN:(SPAWN|DONE)\]\s*(.*)/;
 
 function parseKeyValue(remainder: string): Record<string, string> {
   const result: Record<string, string> = {};
@@ -53,15 +53,6 @@ export function parseOutputLine(line: string): AgentCommand | null {
       const input = kv['input'];
       if (!role || !input) return null;
       return { type: 'SPAWN', role, input };
-    }
-    case 'CHECKPOINT': {
-      const prefix = 'message=';
-      if (!remainder.startsWith(prefix)) return null;
-      const raw = remainder.slice(prefix.length);
-      const message = (raw.startsWith('"') && raw.endsWith('"'))
-        ? raw.slice(1, -1)
-        : raw;
-      return message ? { type: 'CHECKPOINT', message } : null;
     }
     case 'DONE':
       return { type: 'DONE' };

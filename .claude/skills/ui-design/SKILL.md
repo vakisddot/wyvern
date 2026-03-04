@@ -31,7 +31,6 @@ Each status has a color used for the hexagon border and outer glow (`box-shadow`
 | Running | amber | `amber-400` |
 | Done | green | `emerald-400` |
 | Failed | red | `red-400` |
-| Waiting CEO | cyan | `cyan-400` |
 | Spawning/Pending | blue | `blue-400` |
 
 ## Pipeline Tree (left panel, ~280px)
@@ -57,7 +56,6 @@ All interactive elements use **bracketed monospace text**, not pill/rounded butt
 - Header: "Chat Panel"
 - Scrollable message area:
   - CEO messages: labeled "CEO (You):"
-  - Checkpoint messages: card with colored `CHECKPOINT` badge + agent name, message body, then bracketed action buttons below: `[Approve Plan]` `[Request Changes]` `[Abort]`
   - Status updates: subtle gray system messages
 - Large textarea at bottom (multi-line, not single-line input) with dark background
 

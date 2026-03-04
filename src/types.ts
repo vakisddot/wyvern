@@ -30,7 +30,7 @@ export interface WyvernConfig {
 
 // --- Agent runtime state ---
 
-export type AgentStatus = 'pending' | 'running' | 'done' | 'failed' | 'waiting_ceo';
+export type AgentStatus = 'pending' | 'running' | 'done' | 'failed';
 
 export interface AgentNode {
   id: string;
@@ -64,7 +64,6 @@ export interface PipelineState {
 
 export type AgentCommand =
   | { type: 'SPAWN'; role: string; input: string }
-  | { type: 'CHECKPOINT'; message: string }
   | { type: 'DONE' };
 
 // --- Config update result (returned by save/create/delete operations) ---
@@ -81,8 +80,6 @@ export interface ConfigUpdateResult {
 export const IPC_CHANNELS = {
   // Renderer -> Main (request/response)
   START_PIPELINE: 'wyvern:start-pipeline',
-  APPROVE_CHECKPOINT: 'wyvern:approve-checkpoint',
-  REJECT_CHECKPOINT: 'wyvern:reject-checkpoint',
   GET_PIPELINES: 'wyvern:get-pipelines',
   GET_PIPELINE_STATE: 'wyvern:get-pipeline-state',
   GET_ARTIFACT: 'wyvern:get-artifact',
@@ -96,15 +93,12 @@ export const IPC_CHANNELS = {
   DELETE_ROLE: 'wyvern:delete-role',
   // Main -> Renderer (push events)
   PIPELINE_UPDATE: 'wyvern:pipeline-update',
-  CHECKPOINT_REQUEST: 'wyvern:checkpoint-request',
 } as const;
 
 // --- IPC API shape exposed via contextBridge ---
 
 export interface WyvernAPI {
   startPipeline: (directive: string, projectPath: string) => Promise<string>;
-  approveCheckpoint: (pipelineId: string, agentId: string, response: string) => void;
-  rejectCheckpoint: (pipelineId: string, agentId: string, reason: string) => void;
   getPipelines: () => Promise<PipelineState[]>;
   getPipelineState: (id: string) => Promise<PipelineState>;
   getArtifact: (filePath: string) => Promise<string>;
@@ -117,5 +111,4 @@ export interface WyvernAPI {
   createRole: (projectPath: string, slug: string, content: string) => Promise<ConfigUpdateResult>;
   deleteRole: (projectPath: string, slug: string) => Promise<ConfigUpdateResult>;
   onPipelineUpdate: (cb: (state: PipelineState) => void) => () => void;
-  onCheckpointRequest: (cb: (data: { pipelineId: string; agentId: string; message: string }) => void) => () => void;
 }

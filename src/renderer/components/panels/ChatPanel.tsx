@@ -11,67 +11,16 @@ function DirectiveMessage({ msg }: { msg: ChatMessage }) {
   );
 }
 
-function CheckpointMessage({ msg, onApprove, onReject, onAbort }: {
-  msg: ChatMessage;
-  onApprove: () => void;
-  onReject: () => void;
-  onAbort: () => void;
-}) {
-  return (
-    <div className="border border-cyan-800/50 bg-gray-800/40 p-3">
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xs font-bold text-gray-900 bg-cyan-400 px-1.5 py-0.5">CHECKPOINT</span>
-        <span className="text-xs text-gray-300">{msg.roleName ?? msg.agentId}</span>
-      </div>
-      <div className="text-sm text-gray-200 whitespace-pre-wrap">{msg.content}</div>
-      <div className="flex gap-4 mt-3">
-        <button
-          className="text-xs text-gray-400 hover:text-white transition-colors"
-          onClick={onApprove}
-        >[Approve Plan]</button>
-        <button
-          className="text-xs text-gray-400 hover:text-white transition-colors"
-          onClick={onReject}
-        >[Request Changes]</button>
-        <button
-          className="text-xs text-red-400/70 hover:text-red-300 transition-colors"
-          onClick={onAbort}
-        >[Abort]</button>
-      </div>
-    </div>
-  );
-}
-
 function StatusMessage({ msg }: { msg: ChatMessage }) {
   return (
     <p className="text-xs text-gray-500 px-1">{msg.content}</p>
   );
 }
 
-function ApprovalMessage({ msg }: { msg: ChatMessage }) {
-  return (
-    <p className="text-xs text-emerald-400/70 px-1">{msg.content}</p>
-  );
-}
-
-function RejectionMessage({ msg }: { msg: ChatMessage }) {
-  return (
-    <p className="text-xs text-amber-400/70 px-1">{msg.content}</p>
-  );
-}
-
-function MessageRenderer({ msg, onApprove, onReject, onAbort }: {
-  msg: ChatMessage;
-  onApprove: () => void;
-  onReject: () => void;
-  onAbort: () => void;
-}) {
+function MessageRenderer({ msg }: { msg: ChatMessage }) {
   switch (msg.type) {
     case 'directive':   return <DirectiveMessage msg={msg} />;
-    case 'checkpoint':  return <CheckpointMessage msg={msg} onApprove={onApprove} onReject={onReject} onAbort={onAbort} />;
     case 'status':      return <StatusMessage msg={msg} />;
-    case 'approval':    return <ApprovalMessage msg={msg} />;
-    case 'rejection':   return <RejectionMessage msg={msg} />;
     default:            return null;
   }
 }
@@ -102,54 +51,19 @@ export function ChatPanel({ projectPath }: { projectPath: string }) {
     setPrevStatus(currentStatus);
   }, [currentStatus]);
 
-  let pendingCheckpoint: ChatMessage | undefined;
-  for (let i = messages.length - 1; i >= 0; i--) {
-    if (messages[i].type === 'checkpoint') { pendingCheckpoint = messages[i]; break; }
-  }
   const isActive = pipeline?.status === 'active';
 
   function handleSubmit() {
     const text = input.trim();
-    if (!text) return;
+    if (!text || isActive) return;
 
-    if (pendingCheckpoint && isActive) {
-      addMessage({ type: 'approval', content: `CEO approved: ${text}` });
-      if (pendingCheckpoint.pipelineId && pendingCheckpoint.agentId) {
-        window.wyvern.approveCheckpoint(pendingCheckpoint.pipelineId, pendingCheckpoint.agentId, text);
-      }
-    } else if (!isActive) {
-      addMessage({ type: 'directive', content: text });
-      window.wyvern.startPipeline(text, projectPath).catch((err: unknown) => {
-        const msg = err instanceof Error ? err.message : String(err);
-        addMessage({ type: 'status', content: 'Failed to start pipeline: ' + msg });
-      });
-    }
+    addMessage({ type: 'directive', content: text });
+    window.wyvern.startPipeline(text, projectPath).catch((err: unknown) => {
+      const msg = err instanceof Error ? err.message : String(err);
+      addMessage({ type: 'status', content: 'Failed to start pipeline: ' + msg });
+    });
 
     setInput('');
-  }
-
-  function handleApprove() {
-    if (!pendingCheckpoint) return;
-    addMessage({ type: 'approval', content: 'CEO approved the plan.' });
-    if (pendingCheckpoint.pipelineId && pendingCheckpoint.agentId) {
-      window.wyvern.approveCheckpoint(pendingCheckpoint.pipelineId, pendingCheckpoint.agentId, 'approved');
-    }
-  }
-
-  function handleReject() {
-    if (!pendingCheckpoint) return;
-    addMessage({ type: 'rejection', content: 'CEO requested changes.' });
-    if (pendingCheckpoint.pipelineId && pendingCheckpoint.agentId) {
-      window.wyvern.rejectCheckpoint(pendingCheckpoint.pipelineId, pendingCheckpoint.agentId, 'changes requested');
-    }
-  }
-
-  function handleAbort() {
-    if (!pendingCheckpoint) return;
-    addMessage({ type: 'rejection', content: 'CEO aborted the operation.' });
-    if (pendingCheckpoint.pipelineId && pendingCheckpoint.agentId) {
-      window.wyvern.rejectCheckpoint(pendingCheckpoint.pipelineId, pendingCheckpoint.agentId, 'aborted');
-    }
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -169,26 +83,27 @@ export function ChatPanel({ projectPath }: { projectPath: string }) {
           <p className="text-xs text-gray-500 text-center mt-8">Type a directive to get started. Wyvern will coordinate your AI team to execute it.</p>
         )}
         {messages.map((msg) => (
-          <MessageRenderer
-            key={msg.id}
-            msg={msg}
-            onApprove={handleApprove}
-            onReject={handleReject}
-            onAbort={handleAbort}
-          />
+          <MessageRenderer key={msg.id} msg={msg} />
         ))}
         <div ref={bottomRef} />
       </div>
-      <div className="p-3 border-t border-gray-700">
+      <div className="p-3 border-t border-gray-700 flex flex-col gap-2">
         <textarea
           className="w-full bg-gray-800 border border-gray-700 text-sm text-gray-100 p-2 resize-none focus:outline-none focus:border-gray-500 placeholder-gray-600"
           rows={3}
-          placeholder={isActive && !pendingCheckpoint ? 'Pipeline running...' : 'Type a directive...'}
+          placeholder={isActive ? 'Pipeline running...' : 'Type a directive...'}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isActive && !pendingCheckpoint}
+          disabled={isActive}
         />
+        <div className="flex justify-end">
+          <button
+            className="text-xs text-gray-400 hover:text-gray-100 transition-colors disabled:text-gray-600 disabled:cursor-not-allowed"
+            onClick={handleSubmit}
+            disabled={isActive || !input.trim()}
+          >[Send]</button>
+        </div>
       </div>
     </div>
   );

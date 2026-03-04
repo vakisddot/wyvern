@@ -23,9 +23,6 @@ function buildWyvernInstructions(canSpawn: string[], agentDir: string): string {
     lines.push('3. Do NOT add a DONE line when you include SPAWN lines.');
     lines.push('   You will be re-invoked with results and can emit DONE then.');
     lines.push('');
-    lines.push('CHECKPOINT: To pause and ask the CEO for input:');
-    lines.push('   [WYVERN:CHECKPOINT] message=<your question>');
-    lines.push('');
     lines.push('Example output.md with spawns:');
     lines.push('```');
     lines.push('Your analysis and reasoning here...');
@@ -35,9 +32,6 @@ function buildWyvernInstructions(canSpawn: string[], agentDir: string): string {
   } else {
     lines.push('COMPLETION: When your work is done, the LAST line of output.md must be:');
     lines.push('   [WYVERN:DONE]');
-    lines.push('');
-    lines.push('CHECKPOINT: To pause and ask the CEO for input:');
-    lines.push('   [WYVERN:CHECKPOINT] message=<your question>');
     lines.push('');
     lines.push('Example output.md:');
     lines.push('```');

@@ -41,7 +41,7 @@ export function registerIpcHandlers(
     ctx.orchestrator = new Orchestrator(config, roles, selectedPath, dataDir, pipelineManager);
     forwardOrchestratorEvents(mainWindow, ctx.orchestrator);
 
-    mainWindow.setTitle(`Wyvern \u2014 ${config.project.name}`);
+    mainWindow.setTitle(`Wyvern - ${config.project.name}`);
 
     return { config, roles, projectPath: selectedPath };
   });
@@ -69,7 +69,7 @@ export function registerIpcHandlers(
     ctx.orchestrator = new Orchestrator(config, roles, selectedPath, dataDir, pipelineManager);
     forwardOrchestratorEvents(mainWindow, ctx.orchestrator);
 
-    mainWindow.setTitle(`Wyvern \u2014 ${config.project.name}`);
+    mainWindow.setTitle(`Wyvern - ${config.project.name}`);
 
     return { config, roles, projectPath: selectedPath };
   });
@@ -173,21 +173,10 @@ export function registerIpcHandlers(
     }
   });
 
-  ipcMain.on(IPC_CHANNELS.APPROVE_CHECKPOINT, (_event, _pipelineId: string, agentId: string, response: string) => {
-    if (ctx.orchestrator) ctx.orchestrator.resolveCheckpoint(agentId, response);
-  });
-
-  ipcMain.on(IPC_CHANNELS.REJECT_CHECKPOINT, (_event, _pipelineId: string, agentId: string, reason: string) => {
-    if (ctx.orchestrator) ctx.orchestrator.rejectCheckpoint(agentId, reason);
-  });
 }
 
 export function forwardOrchestratorEvents(mainWindow: BrowserWindow, orchestrator: Orchestrator): void {
   orchestrator.on('pipeline-update', (state) => {
     mainWindow.webContents.send(IPC_CHANNELS.PIPELINE_UPDATE, state);
-  });
-
-  orchestrator.on('checkpoint-request', (data) => {
-    mainWindow.webContents.send(IPC_CHANNELS.CHECKPOINT_REQUEST, data);
   });
 }

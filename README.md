@@ -6,7 +6,7 @@
 
 AI Agent Orchestrator - a desktop app that lets you coordinate teams of AI agents to execute complex tasks.
 
-You give a directive in plain language. Wyvern breaks it down, spawns AI agents, and orchestrates them in a recursive tree. You stay in the loop as CEO - approving plans, reviewing checkpoints, and watching agents work in real time.
+You give a directive in plain language. Wyvern breaks it down, spawns AI agents, and orchestrates them in a recursive tree. You stay in the loop as CEO - watching agents work in real time.
 
 ## Prerequisites
 
@@ -107,7 +107,7 @@ system_prompt: |
 
 ## How Agents Communicate
 
-Agents are stateless CLI processes. They don't share memory - they communicate through file artifacts and three structured commands in their stdout:
+Agents are stateless CLI processes. They don't share memory - they communicate through file artifacts and two structured commands in their stdout:
 
 ### DONE - Complete your task
 
@@ -125,33 +125,23 @@ Emit this command when the task is finished. Every agent must emit exactly one D
 
 Write the task description to a file, then emit SPAWN. Wyvern creates a child agent with the given role and passes it the input file. The parent is re-invoked with the child's results in its context.
 
-### CHECKPOINT - Ask the CEO
-
-```
-[WYVERN:CHECKPOINT] message="Should we use PostgreSQL or SQLite?"
-```
-
-Pauses the agent and shows the message in the GUI chat. The CEO (you) can approve, reject, or provide instructions. The agent is re-invoked with your response.
-
 ## Writing System Prompts
 
-Wyvern automatically injects instructions about SPAWN, CHECKPOINT, and DONE into every agent's prompt. Your `system_prompt` should focus on:
+Wyvern automatically injects instructions about SPAWN and DONE into every agent's prompt. Your `system_prompt` should focus on:
 
 1. **What the agent does** - its role and responsibilities
 2. **How it should approach work** - coding style, review standards, etc.
-3. **When to checkpoint** - what decisions need CEO approval
 
 You don't need to explain the Wyvern command format - that's handled automatically.
 
 ## Using the App
 
 1. **Start Wyvern** - `npm run start`
-2. **Open a project** - Click `[Change Project]` and select your project directory (or create a new one)
+2. **Open a project** - Click `[Open Project]` and select your project directory (or create a new one)
 3. **Check CLI tools** - Wyvern verifies all providers referenced by roles are installed
 4. **Enter a directive** - Type your goal in the chat panel and press Enter
 5. **Monitor progress** - The Pipeline Tree shows the agent hierarchy. Click an agent to see its logs, artifacts, and config in the Detail Panel
-6. **Respond to checkpoints** - When an agent asks a question, it appears in the chat. Approve, reject, or type a response
-7. **Review results** - When the pipeline completes, check the output artifacts in the Detail Panel
+6. **Review results** - When the pipeline completes, check the output artifacts in the Detail Panel
 
 ## Troubleshooting
 
@@ -162,7 +152,6 @@ You don't need to explain the Wyvern command format - that's handled automatical
 
 **Pipeline stuck in Running**
 - Check `execution.timeout_per_agent_minutes` - agents are killed after this
-- An agent may be waiting for a checkpoint response in the chat panel
 
 **Agent exits without DONE**
 - The agent's system prompt should emphasize emitting `[WYVERN:DONE]`

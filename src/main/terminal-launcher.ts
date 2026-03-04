@@ -18,7 +18,7 @@ export function openAgentTerminal(role: RoleDefinition, cwd: string, inputFilePa
       cmd = 'claude --model ' + provider + '-' + variant + ' ' + prompt;
       break;
     case 'gemini':
-      cmd = 'gemini --model ' + variant + ' ' + prompt;
+      cmd = 'gemini --model ' + provider + '-' + variant + ' ' + prompt;
       break;
     default:
       throw new Error('Unsupported provider: ' + provider); 
