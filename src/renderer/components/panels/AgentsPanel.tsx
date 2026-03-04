@@ -216,7 +216,7 @@ export function AgentsPanel({ roles, style }: { roles: Record<string, RoleDefini
   const [tab, setTab] = useState<LeftTab>('roles');
 
   return (
-    <div className="bg-gray-900 shrink-0 flex flex-col overflow-hidden" style={style}>
+    <div className="bg-gray-900/80 backdrop-blur-sm shrink-0 flex flex-col overflow-hidden" style={style}>
       <div className="flex items-center gap-3 px-3 pt-3 pb-2 border-b border-gray-700">
         {(['pipeline', 'roles'] as const).map((t) => (
           <button

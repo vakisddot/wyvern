@@ -46,7 +46,7 @@ export function DetailPanel({ roles, config, projectPath, onProjectUpdate, style
 
   if (agent) {
     return (
-      <div className="bg-gray-900 shrink-0 flex flex-col overflow-hidden" style={style}>
+      <div className="bg-gray-900/80 backdrop-blur-sm shrink-0 flex flex-col overflow-hidden" style={style}>
         <AgentDetailView agent={agent} />
       </div>
     );
@@ -88,7 +88,7 @@ export function DetailPanel({ roles, config, projectPath, onProjectUpdate, style
   }
 
   return (
-    <div className="bg-gray-900 shrink-0 flex flex-col overflow-hidden" style={style}>
+    <div className="bg-gray-900/80 backdrop-blur-sm shrink-0 flex flex-col overflow-hidden" style={style}>
       <PanelShell subtitle={subtitle} footer={footer}>
         {content}
       </PanelShell>
