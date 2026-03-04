@@ -28,7 +28,8 @@ function MessageRenderer({ msg }: { msg: ChatMessage }) {
 export function ChatPanel({ projectPath }: { projectPath: string }) {
   const messages = useChatStore((s) => s.messages);
   const addMessage = useChatStore((s) => s.addMessage);
-  const pipeline = usePipelineStore((s) => s.getActivePipeline());
+  const activePipeline = usePipelineStore((s) => s.getActivePipeline());
+  const selectedPipelineId = usePipelineStore((s) => s.selectedPipelineId);
   const [input, setInput] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const [prevStatus, setPrevStatus] = useState<string | null>(null);
@@ -37,25 +38,27 @@ export function ChatPanel({ projectPath }: { projectPath: string }) {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
-  const currentStatus = pipeline?.status ?? null;
+  const currentStatus = activePipeline?.status ?? null;
   useEffect(() => {
-    if (prevStatus === 'active' && currentStatus && currentStatus !== 'active' && pipeline) {
-      const agentCount = Object.keys(pipeline.agents).length;
-      const elapsed = ((pipeline.updatedAt - pipeline.createdAt) / 1000).toFixed(0);
+    if (prevStatus === 'active' && currentStatus && currentStatus !== 'active' && activePipeline) {
+      const agentCount = Object.keys(activePipeline.agents).length;
+      const elapsed = ((activePipeline.updatedAt - activePipeline.createdAt) / 1000).toFixed(0);
       addMessage({
         type: 'status',
         content: `Pipeline ${currentStatus}. ${agentCount} agent(s), ${elapsed}s elapsed.`,
-        pipelineId: pipeline.id,
+        pipelineId: activePipeline.id,
       });
     }
     setPrevStatus(currentStatus);
   }, [currentStatus]);
 
-  const isActive = pipeline?.status === 'active';
+  const isNewPipeline = selectedPipelineId === null;
+  const isActive = activePipeline?.status === 'active';
+  const canType = isNewPipeline && !isActive;
 
   function handleSubmit() {
     const text = input.trim();
-    if (!text || isActive) return;
+    if (!text || !canType) return;
 
     addMessage({ type: 'directive', content: text });
     window.wyvern.startPipeline(text, projectPath).catch((err: unknown) => {
@@ -91,17 +94,17 @@ export function ChatPanel({ projectPath }: { projectPath: string }) {
         <textarea
           className="w-full bg-gray-800 border border-gray-700 text-sm text-gray-100 p-2 resize-none focus:outline-none focus:border-gray-500 placeholder-gray-600"
           rows={3}
-          placeholder={isActive ? 'Pipeline running...' : 'Type a directive...'}
+          placeholder={!isNewPipeline ? 'Select [+ New] to start a pipeline' : isActive ? 'Pipeline running...' : 'Type a directive...'}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
-          disabled={isActive}
+          disabled={!canType}
         />
         <div className="flex justify-end">
           <button
             className="text-xs text-gray-400 hover:text-gray-100 transition-colors disabled:text-gray-600 disabled:cursor-not-allowed"
             onClick={handleSubmit}
-            disabled={isActive || !input.trim()}
+            disabled={!canType || !input.trim()}
           >[Send]</button>
         </div>
       </div>

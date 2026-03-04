@@ -5,6 +5,7 @@ import { ChatPanel } from '../panels/ChatPanel';
 import { DetailPanel } from '../panels/DetailPanel';
 import { TitleBar } from '../shared/TitleBar';
 import { ResizeHandle } from '../shared/ResizeHandle';
+import { usePipelineStore } from '../../stores/pipeline-store';
 import wyvernLogo from '../../assets/wyvern-logo.png';
 
 export interface ProjectData {
@@ -43,6 +44,10 @@ export function Workspace({ project, onChangeProject, onProjectUpdate }: { proje
       return clamped;
     });
   }, [clampWidths, leftWidth]);
+
+  useEffect(() => {
+    usePipelineStore.getState().loadHistory();
+  }, [project.projectPath]);
 
   useEffect(() => {
     function onResize() {

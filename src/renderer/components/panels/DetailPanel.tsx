@@ -6,6 +6,7 @@ import { AgentDetailView } from './detail/AgentDetailView';
 import { RoleDetailView } from './detail/RoleDetailView';
 import { ProjectDetailView } from './detail/ProjectDetailView';
 import { CreateRoleView } from './detail/CreateRoleView';
+import { PipelineDetailView } from './detail/PipelineDetailView';
 
 function PanelShell({ subtitle, footer, children }: {
   subtitle: string;
@@ -40,6 +41,7 @@ interface DetailPanelProps {
 
 export function DetailPanel({ roles, config, projectPath, onProjectUpdate, style }: DetailPanelProps) {
   const agent = usePipelineStore((s) => s.getSelectedAgent());
+  const selectedPipeline = usePipelineStore((s) => s.getSelectedPipeline());
   const selectedRoleSlug = usePipelineStore((s) => s.selectedRoleSlug);
   const creatingRole = usePipelineStore((s) => s.creatingRole);
   const selectedRole = selectedRoleSlug ? roles[selectedRoleSlug] ?? null : null;
@@ -48,6 +50,14 @@ export function DetailPanel({ roles, config, projectPath, onProjectUpdate, style
     return (
       <div className="bg-gray-900/80 backdrop-blur-sm shrink-0 flex flex-col overflow-hidden" style={style}>
         <AgentDetailView agent={agent} />
+      </div>
+    );
+  }
+
+  if (selectedPipeline && !selectedRoleSlug && !creatingRole) {
+    return (
+      <div className="bg-gray-900/80 backdrop-blur-sm shrink-0 flex flex-col overflow-hidden" style={style}>
+        <PipelineDetailView pipeline={selectedPipeline} projectPath={projectPath} />
       </div>
     );
   }

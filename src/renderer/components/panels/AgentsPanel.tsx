@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { usePipelineStore } from '../../stores/pipeline-store';
-import { AgentNode, AgentStatus, RoleDefinition } from '../../../types';
+import { AgentNode, AgentStatus, PipelineState, PipelineStatus, RoleDefinition } from '../../../types';
 import { formatRoleName } from '../../../format-role-name';
 import claudeLogo from '../../assets/claude-color.png';
 import geminiLogo from '../../assets/gemini-color.png';
@@ -202,18 +202,141 @@ function RoleRoster({ roles, selectedSlug, onSelect }: {
   );
 }
 
+// --- Pipeline history list ---
+
+const PIPELINE_STATUS_COLORS: Record<PipelineStatus, string> = {
+  active:    'text-amber-400',
+  completed: 'text-emerald-400',
+  failed:    'text-red-400',
+  paused:    'text-blue-400',
+};
+
+function relativeTime(ts: number): string {
+  const seconds = Math.floor((Date.now() - ts) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function PipelineList({ pipelines, selectedId, activePipelineId, onSelect }: {
+  pipelines: PipelineState[];
+  selectedId: string | null;
+  activePipelineId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  if (pipelines.length === 0) {
+    return <p className="text-xs text-gray-500 text-center py-2">No pipelines</p>;
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      {pipelines.map((p) => {
+        const isSelected = p.id === selectedId;
+        const isActive = p.id === activePipelineId;
+        return (
+          <div
+            key={p.id}
+            className={`px-2 py-1.5 cursor-pointer border-l-2 ${
+              isSelected
+                ? 'border-cyan-400 bg-gray-800/60'
+                : 'border-transparent hover:bg-gray-800/30'
+            }`}
+            onClick={() => onSelect(p.id)}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className={`text-xs truncate ${isSelected ? 'text-gray-100' : 'text-gray-400'}`}>
+                {p.directive.length > 30 ? p.directive.slice(0, 27) + '...' : p.directive}
+              </span>
+              <span className={`text-[10px] shrink-0 ${PIPELINE_STATUS_COLORS[p.status]}`}>
+                [{p.status.toUpperCase()}]
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className="text-[10px] text-gray-600">{relativeTime(p.updatedAt)}</span>
+              {isActive && <span className="text-[10px] text-amber-400">*</span>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// --- Vertical resize handle ---
+
+function VerticalResizeHandle({ onDrag }: { onDrag: (delta: number) => void }) {
+  const dragging = useRef(false);
+  const lastY = useRef(0);
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (!dragging.current) return;
+    const delta = e.clientY - lastY.current;
+    lastY.current = e.clientY;
+    onDrag(delta);
+  }, [onDrag]);
+
+  const onMouseUp = useCallback(() => {
+    dragging.current = false;
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    document.removeEventListener('mousemove', onMouseMove);
+    document.removeEventListener('mouseup', onMouseUp);
+  }, [onMouseMove]);
+
+  function onMouseDown(e: React.MouseEvent) {
+    e.preventDefault();
+    dragging.current = true;
+    lastY.current = e.clientY;
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+  }
+
+  return (
+    <div
+      className="h-1 shrink-0 cursor-row-resize bg-gray-700 hover:bg-gray-500 transition-colors"
+      onMouseDown={onMouseDown}
+    />
+  );
+}
+
 // --- Main exported component ---
 
 type LeftTab = 'pipeline' | 'roles';
 
+const TREE_MIN = 80;
+const HISTORY_MIN = 60;
+
 export function AgentsPanel({ roles, style }: { roles: Record<string, RoleDefinition>; style?: React.CSSProperties }) {
-  const pipeline = usePipelineStore((s) => s.getActivePipeline());
+  const pipelines = usePipelineStore((s) => s.pipelines);
+  const activePipelineId = usePipelineStore((s) => s.activePipelineId);
+  const selectedPipelineId = usePipelineStore((s) => s.selectedPipelineId);
+  const setSelectedPipeline = usePipelineStore((s) => s.setSelectedPipeline);
+  const selectedPipeline = usePipelineStore((s) => s.getSelectedPipeline());
   const selectedAgentId = usePipelineStore((s) => s.selectedAgentId);
   const selectedRoleSlug = usePipelineStore((s) => s.selectedRoleSlug);
   const selectAgent = usePipelineStore((s) => s.selectAgent);
   const selectRole = usePipelineStore((s) => s.selectRole);
   const setCreatingRole = usePipelineStore((s) => s.setCreatingRole);
-  const [tab, setTab] = useState<LeftTab>('roles');
+  const [tab, setTab] = useState<LeftTab>('pipeline');
+  const [treeHeight, setTreeHeight] = useState<number | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const onSplitDrag = useCallback((delta: number) => {
+    setTreeHeight((prev) => {
+      const container = containerRef.current;
+      if (!container) return prev;
+      const total = container.offsetHeight;
+      const current = prev ?? Math.floor(total * 0.6);
+      const next = current + delta;
+      return Math.max(TREE_MIN, Math.min(next, total - HISTORY_MIN));
+    });
+  }, []);
 
   return (
     <div className="bg-gray-900/80 backdrop-blur-sm shrink-0 flex flex-col overflow-hidden" style={style}>
@@ -225,6 +348,12 @@ export function AgentsPanel({ roles, style }: { roles: Record<string, RoleDefini
             onClick={() => setTab(t)}
           >[{t === 'pipeline' ? 'Pipeline' : 'Roles'}]</button>
         ))}
+        {tab === 'pipeline' && (
+          <button
+            className="text-xs text-gray-500 hover:text-cyan-400 transition-colors ml-auto"
+            onClick={() => setSelectedPipeline(null)}
+          >[+ New]</button>
+        )}
         {tab === 'roles' && (
           <button
             className="text-xs text-gray-500 hover:text-cyan-400 transition-colors ml-auto"
@@ -232,15 +361,30 @@ export function AgentsPanel({ roles, style }: { roles: Record<string, RoleDefini
           >[+ Add]</button>
         )}
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
+      <div ref={containerRef} className="flex-1 overflow-hidden flex flex-col">
         {tab === 'pipeline' ? (
-          pipeline ? (
-            <AgentTreeRoot pipeline={pipeline} roles={roles} selectedAgentId={selectedAgentId} onSelect={selectAgent} />
-          ) : (
-            <p className="text-xs text-gray-500 text-center mt-8">No active pipeline</p>
-          )
+          <>
+            <div className="overflow-y-auto p-3" style={{ height: treeHeight ?? '60%', minHeight: TREE_MIN }}>
+              {selectedPipeline ? (
+                <AgentTreeRoot pipeline={selectedPipeline} roles={roles} selectedAgentId={selectedAgentId} onSelect={selectAgent} />
+              ) : (
+                <p className="text-xs text-gray-500 text-center mt-8">Type a directive in the chat to start a new pipeline</p>
+              )}
+            </div>
+            <VerticalResizeHandle onDrag={onSplitDrag} />
+            <div className="flex-1 overflow-y-auto py-1">
+              <PipelineList
+                pipelines={pipelines}
+                selectedId={selectedPipelineId}
+                activePipelineId={activePipelineId}
+                onSelect={setSelectedPipeline}
+              />
+            </div>
+          </>
         ) : (
-          <RoleRoster roles={roles} selectedSlug={selectedRoleSlug} onSelect={selectRole} />
+          <div className="flex-1 overflow-y-auto p-3">
+            <RoleRoster roles={roles} selectedSlug={selectedRoleSlug} onSelect={selectRole} />
+          </div>
         )}
       </div>
     </div>
